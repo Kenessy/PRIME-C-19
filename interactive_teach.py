@@ -43,44 +43,6 @@ def encode_numeric(text: str, seq_len: int) -> torch.Tensor:
     return x
 
 
-class PanicReflex:
-    """Loss-based unlock: reduce friction when loss spikes."""
-
-    def __init__(
-        self,
-        ema_beta: float = 0.9,
-        panic_threshold: float = 1.5,
-        recovery_rate: float = 0.01,
-        inertia_low: float = 0.1,
-        inertia_high: float = 0.95,
-        walk_prob_max: float = 0.2,
-    ) -> None:
-        self.loss_ema: float | None = None
-        self.beta = ema_beta
-        self.threshold = panic_threshold
-        self.recovery = recovery_rate
-        self.inertia_low = inertia_low
-        self.inertia_high = inertia_high
-        self.walk_prob_max = walk_prob_max
-        self.panic_state = 0.0
-
-    def update(self, loss_value: float) -> dict:
-        if self.loss_ema is None:
-            self.loss_ema = loss_value
-            return {"status": "INIT", "inertia": self.inertia_high, "walk_prob": 0.0}
-        ratio = loss_value / (self.loss_ema + 1e-6)
-        if ratio > self.threshold:
-            self.panic_state = 1.0
-        else:
-            self.panic_state = max(0.0, self.panic_state - self.recovery)
-        self.loss_ema = (self.beta * self.loss_ema) + ((1.0 - self.beta) * loss_value)
-        if self.panic_state > 0.1:
-            inertia = self.inertia_low + (self.inertia_high - self.inertia_low) * (1.0 - self.panic_state)
-            walk_prob = self.walk_prob_max * self.panic_state
-            return {"status": "PANIC", "inertia": inertia, "walk_prob": walk_prob}
-        return {"status": "LOCKED", "inertia": self.inertia_high, "walk_prob": 0.0}
-
-
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Interactive teach loop for AbsoluteHallway.")
     parser.add_argument("--mode", choices=["text", "numeric"], default="text")
@@ -222,7 +184,7 @@ def main() -> None:
     panic_reflex = None
     panic_status = ""
     if args.panic_reflex:
-        panic_reflex = PanicReflex(
+        panic_reflex = tp6.PanicReflex(
             ema_beta=args.panic_beta,
             panic_threshold=args.panic_threshold,
             recovery_rate=args.panic_recovery,

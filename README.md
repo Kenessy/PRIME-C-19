@@ -41,3 +41,9 @@ At a high level:
 - Pointer movement is controlled by learned signals plus stabilizers.
 
 For details, see `tournament_phase6.py` and `DEFENSIVE_PUBLICATION.md`.
+
+## Optional Auto Controls
+
+- `TP6_THERMO=1` enables flip-rate thermostat (adjusts inertia/deadzone/walk).
+- `TP6_PTR_UPDATE_AUTO=1` enables auto pointer update cadence.
+- `TP6_PANIC=1` enables loss-based panic reflex (reduces friction on loss spikes).

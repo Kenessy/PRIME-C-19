@@ -98,6 +98,14 @@ THERMO_DEADZONE_MIN = float(os.environ.get("TP6_THERMO_DEADZONE_MIN", 0.0))
 THERMO_DEADZONE_MAX = float(os.environ.get("TP6_THERMO_DEADZONE_MAX", 0.5))
 THERMO_WALK_MIN = float(os.environ.get("TP6_THERMO_WALK_MIN", 0.0))
 THERMO_WALK_MAX = float(os.environ.get("TP6_THERMO_WALK_MAX", 0.3))
+
+PANIC_ENABLED = os.environ.get("TP6_PANIC", "0").strip() == "1"
+PANIC_THRESHOLD = float(os.environ.get("TP6_PANIC_THRESHOLD", 1.5))
+PANIC_BETA = float(os.environ.get("TP6_PANIC_BETA", 0.9))
+PANIC_RECOVERY = float(os.environ.get("TP6_PANIC_RECOVERY", 0.01))
+PANIC_INERTIA_LOW = float(os.environ.get("TP6_PANIC_INERTIA_LOW", 0.1))
+PANIC_INERTIA_HIGH = float(os.environ.get("TP6_PANIC_INERTIA_HIGH", 0.95))
+PANIC_WALK_MAX = float(os.environ.get("TP6_PANIC_WALK_MAX", 0.2))
 MOBIUS_ENABLED = os.environ.get("TP6_MOBIUS", "0").strip() == "1"
 MOBIUS_EMB_SCALE = float(os.environ.get("TP6_MOBIUS_EMB", 0.1))
 ACT_NAME = os.environ.get("TP6_ACT", "identity").strip().lower()
@@ -246,6 +254,44 @@ def apply_thermostat(model, flip_rate: float, ema: float | None):
         model.ptr_walk_prob = min(THERMO_WALK_MAX, model.ptr_walk_prob + THERMO_WALK_STEP)
 
     return ema
+
+
+class PanicReflex:
+    """Loss-based unlock: reduce friction when loss spikes."""
+
+    def __init__(
+        self,
+        ema_beta: float = 0.9,
+        panic_threshold: float = 1.5,
+        recovery_rate: float = 0.01,
+        inertia_low: float = 0.1,
+        inertia_high: float = 0.95,
+        walk_prob_max: float = 0.2,
+    ) -> None:
+        self.loss_ema: float | None = None
+        self.beta = ema_beta
+        self.threshold = panic_threshold
+        self.recovery = recovery_rate
+        self.inertia_low = inertia_low
+        self.inertia_high = inertia_high
+        self.walk_prob_max = walk_prob_max
+        self.panic_state = 0.0
+
+    def update(self, loss_value: float) -> dict:
+        if self.loss_ema is None:
+            self.loss_ema = loss_value
+            return {"status": "INIT", "inertia": self.inertia_high, "walk_prob": 0.0}
+        ratio = loss_value / (self.loss_ema + 1e-6)
+        if ratio > self.threshold:
+            self.panic_state = 1.0
+        else:
+            self.panic_state = max(0.0, self.panic_state - self.recovery)
+        self.loss_ema = (self.beta * self.loss_ema) + ((1.0 - self.beta) * loss_value)
+        if self.panic_state > 0.1:
+            inertia = self.inertia_low + (self.inertia_high - self.inertia_low) * (1.0 - self.panic_state)
+            walk_prob = self.walk_prob_max * self.panic_state
+            return {"status": "PANIC", "inertia": inertia, "walk_prob": walk_prob}
+        return {"status": "LOCKED", "inertia": self.inertia_high, "walk_prob": 0.0}
 
 
 def compute_slope(losses: List[float]) -> float:
@@ -1156,6 +1202,17 @@ def train_wallclock(model, loader, dataset_name, model_name, num_classes, wall_c
     ptr_delta_abs_sum = 0.0
     ptr_max_dwell = 0
     ptr_steps = 0
+    panic_reflex = None
+    panic_status = ""
+    if PANIC_ENABLED:
+        panic_reflex = PanicReflex(
+            ema_beta=PANIC_BETA,
+            panic_threshold=PANIC_THRESHOLD,
+            recovery_rate=PANIC_RECOVERY,
+            inertia_low=PANIC_INERTIA_LOW,
+            inertia_high=PANIC_INERTIA_HIGH,
+            walk_prob_max=PANIC_WALK_MAX,
+        )
 
     start = time.time()
     end_time = start + wall_clock if wall_clock > 0 else float("inf")
@@ -1220,6 +1277,11 @@ def train_wallclock(model, loader, dataset_name, model_name, num_classes, wall_c
                 losses = losses[-LOSS_KEEP:]
             if THERMO_ENABLED and hasattr(model, "ptr_flip_rate") and step % max(1, THERMO_EVERY) == 0:
                 flip_ema = apply_thermostat(model, float(model.ptr_flip_rate), flip_ema)
+            if panic_reflex is not None:
+                ctrl = panic_reflex.update(float(loss))
+                model.ptr_inertia = ctrl["inertia"]
+                model.ptr_walk_prob = ctrl["walk_prob"]
+                panic_status = ctrl["status"]
             if hasattr(model, "pointer_hist"):
                 if pointer_hist_sum is None:
                     pointer_hist_sum = model.pointer_hist.clone()
@@ -1255,6 +1317,7 @@ def train_wallclock(model, loader, dataset_name, model_name, num_classes, wall_c
                 log(
                     f"{dataset_name} | {model_name} | step {step:04d} | loss {loss.item():.4f} | "
                     f"t={elapsed:.1f}s | ctrl(inertia={model.ptr_inertia:.2f}, deadzone={model.ptr_deadzone:.2f}, walk={model.ptr_walk_prob:.2f})"
+                    + (f" | panic={panic_status}" if panic_reflex is not None else "")
                 )
                 live_due = LIVE_TRACE_EVERY > 0 and (step % LIVE_TRACE_EVERY == 0)
                 if HEARTBEAT_SECS > 0.0 and (now - last_live_trace) >= HEARTBEAT_SECS:
@@ -1277,6 +1340,8 @@ def train_wallclock(model, loader, dataset_name, model_name, num_classes, wall_c
                         trace["ptr_inertia"] = model.ptr_inertia
                         trace["ptr_deadzone"] = model.ptr_deadzone
                         trace["ptr_walk_prob"] = model.ptr_walk_prob
+                        if panic_reflex is not None:
+                            trace["panic_status"] = panic_status
                     if getattr(model, "debug_stats", None):
                         trace.update(model.debug_stats)
                     if hasattr(model, "state_loop_entropy"):
@@ -1438,6 +1503,17 @@ def train_steps(model, loader, steps, dataset_name, model_name):
     ptr_max_dwell = 0
     ptr_steps = 0
     flip_ema = None
+    panic_reflex = None
+    panic_status = ""
+    if PANIC_ENABLED:
+        panic_reflex = PanicReflex(
+            ema_beta=PANIC_BETA,
+            panic_threshold=PANIC_THRESHOLD,
+            recovery_rate=PANIC_RECOVERY,
+            inertia_low=PANIC_INERTIA_LOW,
+            inertia_high=PANIC_INERTIA_HIGH,
+            walk_prob_max=PANIC_WALK_MAX,
+        )
     while step < steps:
         try:
             inputs, targets = next(it)
@@ -1479,6 +1555,11 @@ def train_steps(model, loader, steps, dataset_name, model_name):
             ptr_steps += 1
             if THERMO_ENABLED and step % max(1, THERMO_EVERY) == 0:
                 flip_ema = apply_thermostat(model, float(model.ptr_flip_rate), flip_ema)
+        if panic_reflex is not None:
+            ctrl = panic_reflex.update(float(loss))
+            model.ptr_inertia = ctrl["inertia"]
+            model.ptr_walk_prob = ctrl["walk_prob"]
+            panic_status = ctrl["status"]
         if hasattr(model, "ptr_mean_dwell"):
             ptr_mean_dwell_sum += float(model.ptr_mean_dwell)
         if hasattr(model, "ptr_delta_abs_mean"):
