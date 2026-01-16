@@ -1,5 +1,12 @@
 # PRIME C-19 — Phase-Recurring Infinite Manifold Engine (Project David)
 
+**Status:** PRE-ALPHA (research prototype). This is a proof-of-concept published early
+to establish prior art. It is **not** production-ready and is **not** expected to
+work end-to-end yet. Expect breaking changes, unstable results, and incomplete
+components.
+
+**Last updated:** 2026-01-17 (local time)
+
 This repository contains experiments and code for a pointer-controlled ring memory
 system ("Absolute Hallway") used in sequential tasks. **PRIME C-19** is the
 codename for the *Phase-Recurring Infinite Manifold Engine* with the
@@ -20,6 +27,11 @@ See:
 - `DEFENSIVE_PUBLICATION.md` (public disclosure for prior art)
 - `CITATION.cff` (citation metadata)
 - `NOTICE` (copyright + license notice)
+
+## Recent Updates
+
+See `CHANGELOG.md` for full patch notes and timestamps. The latest A/B smoke run
+results are recorded in `proof_ab.csv` (short run; not a full benchmark).
 
 ## What is this?
 

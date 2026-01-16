@@ -426,10 +426,11 @@ class AbsoluteHallway(nn.Module):
         # ptr: [B] float or long, map to reduced indices with linear interpolation.
         ptr_f = ptr.to(torch.float32)
         idx_float = ptr_f / self.ptr_stride
-        idx0 = torch.floor(idx_float)
-        idx0 = torch.clamp(idx0, 0, self.theta_ptr_reduced.numel() - 1).long()
-        idx1 = torch.clamp(idx0 + 1, 0, self.theta_ptr_reduced.numel() - 1).long()
-        frac = (idx_float - idx0.to(ptr_f.dtype)).clamp(0.0, 1.0).detach().unsqueeze(1)
+        idx_base = torch.floor(idx_float)
+        frac = (idx_float - idx_base).clamp(0.0, 1.0).detach().unsqueeze(1)
+        n = self.theta_ptr_reduced.numel()
+        idx0 = torch.remainder(idx_base, n).long()
+        idx1 = torch.remainder(idx0 + 1, n).long()
         ring_range = self.ring_range
 
         theta_ptr0 = torch.sigmoid(self.theta_ptr_reduced[idx0]) * (ring_range - 1)
