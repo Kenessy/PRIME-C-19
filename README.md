@@ -123,8 +123,7 @@ research identity of this project and is referenced in the codename.
 Math form (rendered):
 
 <p align="center">
-
-$$\Large C_{19}(x)=\begin{cases}x-L&x\ge L\\x+L&x\le-L\\\pi\,(sgn\cdot h+\rho h^2)&\text{otherwise}\end{cases}$$
+$$\Large C_{19}(x)=\begin{cases}x-L&x\ge L\ \x+L&x\le-L\\\pi\,(sgn\cdot h+\rho h^2)&\text{otherwise}\end{cases}$$
 
 </p>>
 
