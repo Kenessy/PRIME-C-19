@@ -196,6 +196,9 @@ only and should not be treated as validated results.
 - Renormalized Mobius-hyperbolic Clifford bundle: seam-free double-cover base
   plus hyperbolic fiber and structure-preserving updates. High potential but
   requires a full redesign (not implemented).
+- Spinor-lifted hyperbolic Mobius bundle: smooth double-cover ring + depth axis,
+  with jumps decomposed into tau-step laminar micro-moves. High potential, full
+  redesign (not implemented).
 - Post-jump momentum damping: apply a short cooldown to pointer velocity or
   jump probability for tau steps after a jump to reduce turbulence. This is a
   small, testable idea we may prototype next.
