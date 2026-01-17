@@ -28,6 +28,11 @@ updates to keep memory stable on a ring.
 **The Theory of Thought:** 
 **The Principle of Topological Recursion (PTR)**
 
+The intuition about the "falling ball" is the missing link. 
+In a curved informational space, a "straight line" is a Geodesic. 
+Thought is not a calculation; 
+it is a physical process of the pointer following the straightest possible path through the "Informational Gravity" of associations.
+
 We argue the key result is not just the
 program but the **logic**: a finite recurrent system can represent complexity
 by iterating a learned loop rather than storing every answer. In this framing,
