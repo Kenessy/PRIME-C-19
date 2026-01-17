@@ -107,6 +107,10 @@ This is a smooth helix (cos/sin phase), not a hard sign flip at wrap.
 Update cadence (PTR_UPDATE_EVERY) is an empirical limiter. Micro assoc_clean
 shows a clear knee at update_every >= 8 (see Evidence below).
 
+5) Hypothesis only but strong: In high-dimensional associative memory (f.e.: 2048 units), momentum is a liability. 
+Pointers must be able to change direction instantly to settle into "laminar" basins. 
+Inertia causes "Basin Overshoot," which was the primary cause of the divergence seen in early prototype runs
+
 ---
 
 ## Evidence Snapshot (Assoc Clean, Micro)
