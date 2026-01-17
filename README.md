@@ -1,98 +1,10 @@
-# PRIME C-19 — Phase-Recurring Infinite Manifold Engine (Project David)
+# PRIME C-19 - Phase-Recurring Infinite Manifold Engine (Project David)
+by Daniel Kenessy
 
-PRIME C-19: Phase-Recurring Infinite Manifold Engine
+[![Status: Experimental](https://img.shields.io/badge/Status-Research%20Preview-blue.svg)]()
+[![Architecture: Recurrent](https://img.shields.io/badge/Arch-Manifold%20RNN-purple.svg)]()
 
-"Solving the Gradient Explosion on Circular Manifolds."
-
-PRIME C-19 is a reference implementation of a recurrent neural memory architecture designed to navigate a continuous 1D circular manifold (ring buffer). It introduces a set of topological and numerical fixes that stabilize gradient descent on closed loops, eliminating the notorious "boundary teleportation" glitch found in traditional pointer networks.
-
-⚡ The Core Problem: "The Rubber Wall"
-
-In standard circular memory architectures, training a neural pointer to cross the boundary (e.g., Bin $2047 \to 0$) fails catastrophically.
-
-Linear Interpolation: Sees a jump of 2047 units instead of 1 unit.
-
-Result: Gradients explode, causing the optimizer to either freeze the pointer (The Statue) or randomize it (The Teleport).
-
-🛠️ The Solution: Architecture Overview
-
-PRIME C-19 acts as a patch for this topology issue using three specific mechanisms:
-
-1. Shortest-Arc Interpolation (Topology)
-
-We replaced standard linear delta calculations with a modular distance function.
-
-
-$$\Delta = ((P_{target} - P_{current} + N/2) \pmod N) - N/2$$
-
-
-This ensures the error signal always flows through the "shortest bridge" across the ring, effectively turning the linear strip into a true cylinder.
-
-2. Fractional Gaussian Kernels (Gradients)
-
-Discrete pointers (Integers) have zero gradients between steps. We implement Fractional Read/Write Heads (e.g., Index 10.4) using truncated Gaussian kernels.
-
-Engineering Note: This architecture enforces FP32 precision for pointer mechanics. We found that standard FP16/AMP mixed precision rounds micro-gradients to zero, paralyzing the learning process.
-
-3. The Möbius Phase Flip (Capacity)
-
-To maximize the logical capacity of a fixed-size physical ring, the architecture tracks a logical coordinate space $[0, 2N)$. When the pointer traverses the logical horizon ($N/2$), the retrieved vector is multiplied by $-1$. This allows the storage of "Anti-Features" in the same physical space without interference.
-
-📊 Comparison to Standard Methods
-
-Feature
-
-Transformers (Attention)
-
-Standard RNNs (LSTM/GRU)
-
-Neural Turing Machines
-
-PRIME C-19
-
-Context Cost
-
-$O(N^2)$ (Quadratic)
-
-$O(N)$ (Linear Decay)
-
-$O(N)$ (Softmax)
-
-$O(1)$ (Local Kernel)
-
-Topology
-
-Flat Sequence
-
-Flat Sequence
-
-Linear Tape
-
-Circular Manifold
-
-Boundary
-
-N/A
-
-N/A
-
-Hard Boundary
-
-Continuous Loop
-
-Stability
-
-High
-
-High
-
-Low (Unstable)
-
-High (Stabilized)
-
-
-
-
+> "Solving the Gradient Explosion on Circular Manifolds."
 
 **Status:** PRE-ALPHA (research prototype). This is a proof-of-concept published early
 to establish prior art. It is **not** production-ready and is **not** expected to
@@ -101,10 +13,63 @@ components.
 
 **Last updated:** 2026-01-17 (local time)
 
-This repository contains experiments and code for a pointer-controlled ring memory
-system ("Absolute Hallway") used in sequential tasks. **PRIME C-19** is the
-codename for the *Phase-Recurring Infinite Manifold Engine* with the
-**Candidate-19** activation function.
+PRIME C-19 is a reference implementation of a recurrent neural memory architecture
+designed to navigate a continuous 1D circular manifold (ring buffer). It introduces
+topological and numerical fixes that stabilize gradient descent on closed loops,
+eliminating the "boundary teleportation" glitch found in traditional pointer networks.
+
+---
+
+## The Core Problem: "The Rubber Wall"
+In standard circular memory architectures, training a neural pointer to cross the
+boundary (e.g., bin 2047 -> 0) fails catastrophically.
+- Linear interpolation sees a jump of 2047 units instead of 1 unit.
+- Result: gradients explode, causing the optimizer to freeze the pointer (the statue)
+  or randomize it (the teleport).
+
+## The Solution: Architecture Overview
+PRIME C-19 patches the topology issue using three specific mechanisms:
+
+### 1) Shortest-Arc Interpolation (Topology)
+We replace standard linear deltas with a modular distance:
+
+Delta = ((P_target - P_current + N/2) mod N) - N/2
+
+This forces error signals to flow through the shortest bridge across the ring.
+
+### 2) Fractional Gaussian Kernels (Gradients)
+Discrete pointers have zero gradients between steps. PRIME C-19 uses fractional
+read/write heads (e.g., index 10.4) with Gaussian/VonMises kernels to keep a
+continuous gradient signal.
+
+Engineering note: pointer mechanics are forced to FP32. FP16/AMP rounds the
+micro-gradients to zero and paralyzes learning.
+
+### 3) Mobius Phase Flip (Capacity)
+To expand logical capacity without more VRAM, the pointer tracks a logical range
+[0, 2N). When the pointer crosses the logical horizon, the retrieved vector is
+multiplied by -1. This enables "anti-features" in the same physical ring.
+
+---
+
+## Comparison to Standard Methods
+
+| Feature | Transformers | Standard RNNs | Neural Turing Machines | PRIME C-19 |
+| :--- | :--- | :--- | :--- | :--- |
+| Context Cost | O(N^2) | O(N) | O(N) | O(1) local kernel |
+| Topology | Flat sequence | Flat sequence | Linear tape | Circular manifold |
+| Boundary | N/A | N/A | Hard boundary | Continuous loop |
+| Stability | High | High | Low | High (stabilized) |
+
+---
+
+## Activation Spotlight (C-19)
+
+**Default activation:** `C-19` (`TP6_ACT=c19`)
+
+Candidate-19 is the project's custom activation used to stabilize the pointer
+pipeline while preserving continuous gradients. You can override it per run:
+`TP6_ACT=identity` (or `tanh`, `silu`, etc.).
 
 ## License (Noncommercial)
 
@@ -125,16 +90,16 @@ See:
 ## Recent Updates
 
 See `CHANGELOG.md` for full patch notes and timestamps. The latest A/B smoke run
-results are recorded in `proof_ab.csv` (short run; not a full benchmark).
+results are recorded in `artifacts/ab_runs/proof_ab.csv` (short run; not a full benchmark).
 
-## What is this?
+## Quick Summary
 
 At a high level:
 - A continuous pointer moves on a circular memory ring.
 - A kernel (Gaussian/VonMises) reads/writes a local neighborhood of the ring.
 - Pointer movement is controlled by learned signals plus stabilizers.
 
-For details, see `tournament_phase6.py` and `DEFENSIVE_PUBLICATION.md`.
+For details, see `tournament_phase6.py`, `prime_c19/settings.py`, and `DEFENSIVE_PUBLICATION.md`.
 
 ## Optional Auto Controls
 

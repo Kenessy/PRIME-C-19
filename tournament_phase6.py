@@ -19,112 +19,104 @@ except Exception:
     torchaudio = None
     HAS_TORCHAUDIO = False
 
-ROOT = r"G:\AI\pilot_pulse"
-DATA_DIR = os.path.join(ROOT, "data")
-LOG_PATH = os.path.join(ROOT, "logs", "current", "tournament_phase6.log")
+from prime_c19.settings import load_settings
 
-SEED = int(os.environ.get("TP6_SEED", 123))
-DEVICE = os.environ.get("TP6_DEVICE", "").strip().lower()
-if DEVICE not in {"cuda", "cpu"}:
-    DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
-OFFLINE_ONLY = os.environ.get("PILOT_OFFLINE", "1") == "1"
+CFG = load_settings()
 
-AUDIO_BACKEND = os.environ.get("TP6_AUDIO_BACKEND", "").strip()
-if HAS_TORCHAUDIO and AUDIO_BACKEND:
+ROOT = CFG.root
+DATA_DIR = CFG.data_dir
+LOG_PATH = CFG.log_path
+
+SEED = CFG.seed
+DEVICE = CFG.device
+OFFLINE_ONLY = CFG.offline_only
+
+if HAS_TORCHAUDIO and CFG.audio_backend:
     try:
-        torchaudio.set_audio_backend(AUDIO_BACKEND)
+        torchaudio.set_audio_backend(CFG.audio_backend)
     except Exception:
         pass
 
 # experiment budget (env overrides for quick sanity)
-MAX_SAMPLES = int(os.environ.get("TP6_MAX_SAMPLES", 5000))
-EVAL_SAMPLES = int(os.environ.get("TP6_EVAL_SAMPLES", 1024))
-EVAL_SPLIT = os.environ.get("TP6_EVAL_SPLIT", "test").strip().lower()
-BATCH_SIZE = int(os.environ.get("TP6_BATCH_SIZE", 128))
-LR = float(os.environ.get("TP6_LR", 1e-3))
-WALL_CLOCK_SECONDS = int(os.environ.get("TP6_WALL", 15 * 60))  # seconds
-MAX_STEPS = int(os.environ.get("TP6_MAX_STEPS", 0))
-HEARTBEAT_STEPS = int(os.environ.get("TP6_HEARTBEAT", 10))
-HEARTBEAT_SECS = float(os.environ.get("TP6_HEARTBEAT_SECS", 0.0))
-LIVE_TRACE_EVERY = int(os.environ.get("TP6_LIVE_TRACE_EVERY", HEARTBEAT_STEPS))
-SATIETY_THRESH = float(os.environ.get("TP6_SATIETY", 0.98))
-RING_LEN = int(os.environ.get("TP6_RING_LEN", 4096))
-PTR_PARAM_STRIDE = int(os.environ.get("TP6_PTR_STRIDE", 1))
+MAX_SAMPLES = CFG.max_samples
+EVAL_SAMPLES = CFG.eval_samples
+EVAL_SPLIT = CFG.eval_split
+BATCH_SIZE = CFG.batch_size
+LR = CFG.lr
+WALL_CLOCK_SECONDS = CFG.wall_clock_seconds  # seconds
+MAX_STEPS = CFG.max_steps
+HEARTBEAT_STEPS = CFG.heartbeat_steps
+HEARTBEAT_SECS = CFG.heartbeat_secs
+LIVE_TRACE_EVERY = CFG.live_trace_every
+SATIETY_THRESH = CFG.satiety_thresh
+RING_LEN = CFG.ring_len
+PTR_PARAM_STRIDE = CFG.ptr_param_stride
 # Gaussian window + movement penalty controls
-GAUSS_K = int(os.environ.get("TP6_GAUSS_K", 2))  # neighbors on each side; window size = 2*K+1
-GAUSS_TAU = float(os.environ.get("TP6_GAUSS_TAU", 0.5))
-PTR_KERNEL = os.environ.get("TP6_PTR_KERNEL", "gauss").strip().lower()
-PTR_KAPPA = float(os.environ.get("TP6_PTR_KAPPA", 4.0))
-PTR_EDGE_EPS = float(os.environ.get("TP6_PTR_EDGE_EPS", 0.0))
-LAMBDA_MOVE = float(os.environ.get("TP6_LMOVE", 1e-3))
-PTR_INERTIA = float(os.environ.get("TP6_PTR_INERTIA", 0.0))  # 0=no inertia, 0.9=strong stay-bias
-PTR_DEADZONE = float(os.environ.get("TP6_PTR_DEADZONE", 0.0))  # distance below which pointer resists moving
-PTR_DEADZONE_TAU = float(os.environ.get("TP6_PTR_DEADZONE_TAU", 1e-3))
-PTR_WARMUP_STEPS = int(os.environ.get("TP6_PTR_WARMUP_STEPS", 0))
-PTR_WALK_PROB = float(os.environ.get("TP6_PTR_WALK_PROB", 0.2))  # 0=stay when not jumping, 1=always walk
-PTR_NO_ROUND = os.environ.get("TP6_PTR_NO_ROUND", "0").strip() == "1"
-PTR_PHANTOM = os.environ.get("TP6_PTR_PHANTOM", "0").strip() == "1"
-PTR_PHANTOM_OFF = float(os.environ.get("TP6_PTR_PHANTOM_OFF", 0.5))
-PTR_PHANTOM_READ = os.environ.get("TP6_PTR_PHANTOM_READ", "0").strip() == "1"
-SOFT_READOUT = os.environ.get("TP6_SOFT_READOUT", "0").strip() == "1"
-SOFT_READOUT_K = int(os.environ.get("TP6_SOFT_READOUT_K", 2))
-SOFT_READOUT_TAU = float(os.environ.get("TP6_SOFT_READOUT_TAU", GAUSS_TAU))
-PTR_VEL = os.environ.get("TP6_PTR_VEL", "0").strip() == "1"
-PTR_VEL_DECAY = float(os.environ.get("TP6_PTR_VEL_DECAY", 0.9))
-PTR_VEL_CAP = float(os.environ.get("TP6_PTR_VEL_CAP", 0.5))
-PTR_VEL_SCALE = float(os.environ.get("TP6_PTR_VEL_SCALE", 1.0))
-PTR_LOCK = os.environ.get("TP6_PTR_LOCK", "0").strip() == "1"
-PTR_LOCK_VALUE = float(os.environ.get("TP6_PTR_LOCK_VALUE", 0.5))
-PTR_UPDATE_EVERY = int(os.environ.get("TP6_PTR_UPDATE_EVERY", 1))
-PTR_UPDATE_AUTO = os.environ.get("TP6_PTR_UPDATE_AUTO", "0").strip() == "1"
-PTR_UPDATE_MIN = int(os.environ.get("TP6_PTR_UPDATE_MIN", 1))
-PTR_UPDATE_MAX = int(os.environ.get("TP6_PTR_UPDATE_MAX", 16))
-PTR_UPDATE_EVERY_STEP = int(os.environ.get("TP6_PTR_UPDATE_EVERY_STEP", 20))
-PTR_UPDATE_TARGET_FLIP = float(os.environ.get("TP6_PTR_UPDATE_TARGET_FLIP", 0.2))
-PTR_UPDATE_EMA = float(os.environ.get("TP6_PTR_UPDATE_EMA", 0.9))
-PTR_GATE_MODE = os.environ.get("TP6_PTR_GATE_MODE", "none").strip().lower()
-PTR_GATE_STEPS = os.environ.get("TP6_PTR_GATE_STEPS", "").strip()
-PTR_SOFT_GATE = os.environ.get("TP6_PTR_SOFT_GATE", "0").strip() == "1"
-THERMO_ENABLED = os.environ.get("TP6_THERMO", "0").strip() == "1"
-THERMO_EVERY = int(os.environ.get("TP6_THERMO_EVERY", 20))
-THERMO_TARGET_FLIP = float(os.environ.get("TP6_THERMO_TARGET_FLIP", 0.2))
-THERMO_EMA = float(os.environ.get("TP6_THERMO_EMA", 0.9))
-THERMO_INERTIA_STEP = float(os.environ.get("TP6_THERMO_INERTIA_STEP", 0.05))
-THERMO_DEADZONE_STEP = float(os.environ.get("TP6_THERMO_DEADZONE_STEP", 0.02))
-THERMO_WALK_STEP = float(os.environ.get("TP6_THERMO_WALK_STEP", 0.02))
-THERMO_INERTIA_MIN = float(os.environ.get("TP6_THERMO_INERTIA_MIN", 0.0))
-THERMO_INERTIA_MAX = float(os.environ.get("TP6_THERMO_INERTIA_MAX", 0.95))
-THERMO_DEADZONE_MIN = float(os.environ.get("TP6_THERMO_DEADZONE_MIN", 0.0))
-THERMO_DEADZONE_MAX = float(os.environ.get("TP6_THERMO_DEADZONE_MAX", 0.5))
-THERMO_WALK_MIN = float(os.environ.get("TP6_THERMO_WALK_MIN", 0.0))
-THERMO_WALK_MAX = float(os.environ.get("TP6_THERMO_WALK_MAX", 0.3))
+GAUSS_K = CFG.gauss_k  # neighbors on each side; window size = 2*K+1
+GAUSS_TAU = CFG.gauss_tau
+PTR_KERNEL = CFG.ptr_kernel
+PTR_KAPPA = CFG.ptr_kappa
+PTR_EDGE_EPS = CFG.ptr_edge_eps
+LAMBDA_MOVE = CFG.lambda_move
+PTR_INERTIA = CFG.ptr_inertia  # 0=no inertia, 0.9=strong stay-bias
+PTR_DEADZONE = CFG.ptr_deadzone  # distance below which pointer resists moving
+PTR_DEADZONE_TAU = CFG.ptr_deadzone_tau
+PTR_WARMUP_STEPS = CFG.ptr_warmup_steps
+PTR_WALK_PROB = CFG.ptr_walk_prob  # 0=stay when not jumping, 1=always walk
+PTR_NO_ROUND = CFG.ptr_no_round
+PTR_PHANTOM = CFG.ptr_phantom
+PTR_PHANTOM_OFF = CFG.ptr_phantom_off
+PTR_PHANTOM_READ = CFG.ptr_phantom_read
+SOFT_READOUT = CFG.soft_readout
+SOFT_READOUT_K = CFG.soft_readout_k
+SOFT_READOUT_TAU = CFG.soft_readout_tau
+PTR_VEL = CFG.ptr_vel
+PTR_VEL_DECAY = CFG.ptr_vel_decay
+PTR_VEL_CAP = CFG.ptr_vel_cap
+PTR_VEL_SCALE = CFG.ptr_vel_scale
+PTR_LOCK = CFG.ptr_lock
+PTR_LOCK_VALUE = CFG.ptr_lock_value
+PTR_UPDATE_EVERY = CFG.ptr_update_every
+PTR_UPDATE_AUTO = CFG.ptr_update_auto
+PTR_UPDATE_MIN = CFG.ptr_update_min
+PTR_UPDATE_MAX = CFG.ptr_update_max
+PTR_UPDATE_EVERY_STEP = CFG.ptr_update_every_step
+PTR_UPDATE_TARGET_FLIP = CFG.ptr_update_target_flip
+PTR_UPDATE_EMA = CFG.ptr_update_ema
+PTR_GATE_MODE = CFG.ptr_gate_mode
+PTR_GATE_STEPS = CFG.ptr_gate_steps
+PTR_SOFT_GATE = CFG.ptr_soft_gate
+THERMO_ENABLED = CFG.thermo_enabled
+THERMO_EVERY = CFG.thermo_every
+THERMO_TARGET_FLIP = CFG.thermo_target_flip
+THERMO_EMA = CFG.thermo_ema
+THERMO_INERTIA_STEP = CFG.thermo_inertia_step
+THERMO_DEADZONE_STEP = CFG.thermo_deadzone_step
+THERMO_WALK_STEP = CFG.thermo_walk_step
+THERMO_INERTIA_MIN = CFG.thermo_inertia_min
+THERMO_INERTIA_MAX = CFG.thermo_inertia_max
+THERMO_DEADZONE_MIN = CFG.thermo_deadzone_min
+THERMO_DEADZONE_MAX = CFG.thermo_deadzone_max
+THERMO_WALK_MIN = CFG.thermo_walk_min
+THERMO_WALK_MAX = CFG.thermo_walk_max
 
-PANIC_ENABLED = os.environ.get("TP6_PANIC", "0").strip() == "1"
-PANIC_THRESHOLD = float(os.environ.get("TP6_PANIC_THRESHOLD", 1.5))
-PANIC_BETA = float(os.environ.get("TP6_PANIC_BETA", 0.9))
-PANIC_RECOVERY = float(os.environ.get("TP6_PANIC_RECOVERY", 0.01))
-PANIC_INERTIA_LOW = float(os.environ.get("TP6_PANIC_INERTIA_LOW", 0.1))
-PANIC_INERTIA_HIGH = float(os.environ.get("TP6_PANIC_INERTIA_HIGH", 0.95))
-PANIC_WALK_MAX = float(os.environ.get("TP6_PANIC_WALK_MAX", 0.2))
-MOBIUS_ENABLED = os.environ.get("TP6_MOBIUS", "0").strip() == "1"
-MOBIUS_EMB_SCALE = float(os.environ.get("TP6_MOBIUS_EMB", 0.1))
-ACT_NAME = os.environ.get("TP6_ACT", "identity").strip().lower()
-C13_P = float(os.environ.get("TP6_C13_P", 2.0))
-DEBUG_NAN = os.environ.get("TP6_DEBUG_NAN", "0").strip() == "1"
-DEBUG_STATS = os.environ.get("TP6_DEBUG_STATS", "0").strip() == "1"
-DEBUG_EVERY = int(os.environ.get("TP6_DEBUG_EVERY", 0))
-PRECISION = os.environ.get("TP6_PRECISION", "fp32").strip().lower()
-DTYPE_MAP = {
-    "fp64": torch.float64,
-    "fp32": torch.float32,
-    "fp16": torch.float16,
-    "bf16": torch.bfloat16,
-    "amp": torch.float16,
-}
-DTYPE = DTYPE_MAP.get(PRECISION, torch.float32)
-USE_AMP = DEVICE == "cuda" and PRECISION in {"fp16", "bf16", "amp"}
-if PRECISION == "fp64":
-    USE_AMP = False
+PANIC_ENABLED = CFG.panic_enabled
+PANIC_THRESHOLD = CFG.panic_threshold
+PANIC_BETA = CFG.panic_beta
+PANIC_RECOVERY = CFG.panic_recovery
+PANIC_INERTIA_LOW = CFG.panic_inertia_low
+PANIC_INERTIA_HIGH = CFG.panic_inertia_high
+PANIC_WALK_MAX = CFG.panic_walk_max
+MOBIUS_ENABLED = CFG.mobius_enabled
+MOBIUS_EMB_SCALE = CFG.mobius_emb_scale
+ACT_NAME = CFG.act_name
+C13_P = CFG.c13_p
+DEBUG_NAN = CFG.debug_nan
+DEBUG_STATS = CFG.debug_stats
+DEBUG_EVERY = CFG.debug_every
+PRECISION = CFG.precision
+DTYPE = CFG.dtype
+USE_AMP = CFG.use_amp
 torch.set_default_dtype(DTYPE)
 
 if hasattr(torch, "amp") and hasattr(torch.amp, "autocast"):
@@ -139,35 +131,35 @@ else:
 
     def amp_grad_scaler():
         return torch.cuda.amp.GradScaler(enabled=USE_AMP)
-MI_SHUFFLE = os.environ.get("TP6_MI_SHUFFLE", "0").strip() == "1"
-STATE_LOOP_METRICS = os.environ.get("TP6_STATE_LOOP_METRICS", "0").strip() == "1"
-STATE_LOOP_EVERY = int(os.environ.get("TP6_STATE_LOOP_EVERY", 1))
-STATE_LOOP_SAMPLES = int(os.environ.get("TP6_STATE_LOOP_SAMPLES", 0))
-STATE_LOOP_DIM = int(os.environ.get("TP6_STATE_LOOP_DIM", 16))
-GRAD_CLIP = float(os.environ.get("TP6_GRAD_CLIP", 0.0))
-STATE_CLIP = float(os.environ.get("TP6_STATE_CLIP", 0.0))
-STATE_DECAY = float(os.environ.get("TP6_STATE_DECAY", 1.0))
-UPDATE_SCALE = float(os.environ.get("TP6_UPDATE_SCALE", 1.0))
-LIVE_TRACE_PATH = os.environ.get("TP6_LIVE_TRACE", os.path.join(ROOT, "traces", "current", "live_trace.json"))
-RUN_MODE = os.environ.get("TP6_MODE", "train")
+MI_SHUFFLE = CFG.mi_shuffle
+STATE_LOOP_METRICS = CFG.state_loop_metrics
+STATE_LOOP_EVERY = CFG.state_loop_every
+STATE_LOOP_SAMPLES = CFG.state_loop_samples
+STATE_LOOP_DIM = CFG.state_loop_dim
+GRAD_CLIP = CFG.grad_clip
+STATE_CLIP = CFG.state_clip
+STATE_DECAY = CFG.state_decay
+UPDATE_SCALE = CFG.update_scale
+LIVE_TRACE_PATH = CFG.live_trace_path
+RUN_MODE = CFG.run_mode
 # Checkpoint / resume controls
-CHECKPOINT_PATH = os.environ.get("TP6_CKPT", os.path.join(ROOT, "checkpoint.pt"))
-SAVE_EVERY_STEPS = int(os.environ.get("TP6_SAVE_EVERY", 0))
-RESUME = os.environ.get("TP6_RESUME", "0") == "1"
-LOSS_KEEP = int(os.environ.get("TP6_LOSS_KEEP", 2000))
+CHECKPOINT_PATH = CFG.checkpoint_path
+SAVE_EVERY_STEPS = CFG.save_every_steps
+RESUME = CFG.resume
+LOSS_KEEP = CFG.loss_keep
 # Lockout test controls (synthetic, deterministic)
-PHASE_A_STEPS = int(os.environ.get("TP6_PHASE_A_STEPS", 50))
-PHASE_B_STEPS = int(os.environ.get("TP6_PHASE_B_STEPS", 50))
-SYNTH_LEN = int(os.environ.get("TP6_SYNTH_LEN", 256))
-SYNTH_SHUFFLE = os.environ.get("TP6_SYNTH_SHUFFLE", "0") == "1"
-SYNTH_MODE = os.environ.get("TP6_SYNTH_MODE", "random").strip().lower()
-HAND_MIN = int(os.environ.get("TP6_HAND_MIN", 256))
+PHASE_A_STEPS = CFG.phase_a_steps
+PHASE_B_STEPS = CFG.phase_b_steps
+SYNTH_LEN = CFG.synth_len
+SYNTH_SHUFFLE = CFG.synth_shuffle
+SYNTH_MODE = CFG.synth_mode
+HAND_MIN = CFG.hand_min
 SYNTH_META = {}
 # Evolution defaults (small to keep runs short/safe)
-EVO_POP = int(os.environ.get("TP6_EVO_POP", 6))
-EVO_GENS = int(os.environ.get("TP6_EVO_GENS", 3))
-EVO_STEPS = int(os.environ.get("TP6_EVO_STEPS", 100))
-EVO_MUT_STD = float(os.environ.get("TP6_EVO_MUT_STD", 0.02))
+EVO_POP = CFG.evo_pop
+EVO_GENS = CFG.evo_gens
+EVO_STEPS = CFG.evo_steps
+EVO_MUT_STD = CFG.evo_mut_std
 
 
 def set_seed(seed: int) -> None:
@@ -304,6 +296,16 @@ def compute_slope(losses: List[float]) -> float:
 
 
 class AbsoluteHallway(nn.Module):
+    @staticmethod
+    def wrap_delta(a, b, ring_range):
+        # Shortest signed delta from a to b on a ring.
+        return torch.remainder(b - a + ring_range / 2, ring_range) - ring_range / 2
+
+    @staticmethod
+    def circ_lerp(a, b, w, ring_range):
+        # Move from a toward b by fraction w along shortest arc.
+        return torch.remainder(a + w * AbsoluteHallway.wrap_delta(a, b, ring_range), ring_range)
+
     """
     Boundaryless ring with intrinsic pointer params per neuron.
     - Each neuron has theta_ptr (target coord) and theta_gate (bias).
@@ -533,14 +535,6 @@ class AbsoluteHallway(nn.Module):
         satiety_exited = torch.zeros(B, device=device, dtype=torch.bool)
         ptr_vel = torch.zeros(B, device=device, dtype=ptr_dtype)
 
-        def circ_delta(a, b):
-            # Shortest signed delta from a to b on a ring.
-            return torch.remainder(b - a + ring_range / 2, ring_range) - ring_range / 2
-
-        def circ_lerp(a, b, w):
-            # Move from a toward b by fraction w along shortest arc.
-            return torch.remainder(a + w * circ_delta(a, b), ring_range)
-
         movement_cost = 0.0
         # Dynamic pointer trace (loops/motion)
         prev_ptr_int = None
@@ -665,22 +659,22 @@ class AbsoluteHallway(nn.Module):
                 # allow "stay" when not jumping to reduce flapping
                 walk_prob = min(max(self.ptr_walk_prob, 0.0), 1.0)
                 stay_ptr = prev_ptr
-                non_jump_ptr = circ_lerp(stay_ptr, walk_ptr, walk_prob)
+                non_jump_ptr = self.circ_lerp(stay_ptr, walk_ptr, walk_prob, ring_range)
                 # soft mix keeps gradients flowing through p and target_ste
-                ptr_float = circ_lerp(non_jump_ptr, target_ste, p)
+                ptr_float = self.circ_lerp(non_jump_ptr, target_ste, p, ring_range)
                 # optional inertia (stay-bias)
                 inertia = min(max(self.ptr_inertia, 0.0), 0.99)
                 if inertia > 0.0:
-                    ptr_float = circ_lerp(prev_ptr, ptr_float, 1.0 - inertia)
+                    ptr_float = self.circ_lerp(prev_ptr, ptr_float, 1.0 - inertia, ring_range)
                 # optional deadzone with smooth mask (keeps gradients flowing)
                 if self.ptr_deadzone > 0.0:
-                    delta_raw = circ_delta(prev_ptr, ptr_float)
+                    delta_raw = self.wrap_delta(prev_ptr, ptr_float, ring_range)
                     tau = max(self.ptr_deadzone_tau, 1e-6)
                     move_mask = torch.sigmoid((delta_raw.abs() - self.ptr_deadzone) / tau)
                     ptr_float = torch.remainder(prev_ptr + move_mask * delta_raw, ring_range)
                 # Optional velocity governor: smooths large pointer jumps into bounded motion.
                 if self.ptr_vel_enabled:
-                    delta_to_target = circ_delta(prev_ptr, ptr_float)
+                    delta_to_target = self.wrap_delta(prev_ptr, ptr_float, ring_range)
                     scale = max(self.ptr_vel_scale, 1e-6)
                     torque = torch.tanh(delta_to_target / scale) * self.ptr_vel_cap
                     ptr_vel = self.ptr_vel_decay * ptr_vel + (1.0 - self.ptr_vel_decay) * torque
@@ -688,7 +682,7 @@ class AbsoluteHallway(nn.Module):
                 # Optional learned soft gate: modulates how strongly the pointer updates.
                 if self.ptr_soft_gate and self.gate_head is not None:
                     gate = torch.sigmoid(self.gate_head(upd)).squeeze(1)
-                    delta_gate = circ_delta(prev_ptr, ptr_float)
+                    delta_gate = self.wrap_delta(prev_ptr, ptr_float, ring_range)
                     ptr_float = torch.remainder(prev_ptr + gate * delta_gate, ring_range)
             if self.ptr_vel_enabled:
                 ptr_vel = torch.where(active_mask, ptr_vel, torch.zeros_like(ptr_vel))
