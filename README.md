@@ -48,17 +48,26 @@ shows a clear knee at update_every >= 8 (see Evidence below).
 
 Task: assoc_clean (len=8, keys=2, pairs=1), soft gate ON, no panic/thermo.
 
+Fixed cadence sweep (3 seeds, mean acc):
+
 ```
-update_every  eval_acc
-1             0.5430
-2             0.5430
-4             0.7070
-8             0.8047
-16            0.8047
+update_every  eval_acc_mean
+1             0.5176
+2             0.5208
+4             0.5430
+8             0.7129
+16            0.7129
+```
+
+Governor run (Unified Manifold Governor, 3 seeds):
+```
+steps  eval_acc_mean  eval_loss_mean
+400    0.8867         0.3557
+800    1.0000         0.0737
 ```
 
 Jump-cap alone does not fix "jump every step" failure:
-- update_every=1: cap=0.2 and no-cap both ~0.543 acc.
+- update_every=1: cap=0.2 and no-cap both ~0.52 acc (3 seeds).
 
 Details: docs/ASSOC_CLEAN_SWEEP.md
 
@@ -120,11 +129,7 @@ research identity of this project and is referenced in the codename.
 - Default: TP6_ACT=c19
 - Alternatives: TP6_ACT=identity | tanh | silu | relu
 
-Math form (rendered):
-
-<p align="center">
-  <img alt="C19 activation" src="https://latex.codecogs.com/svg.image?\\Large%20C_{19}(x)=\\begin{cases}x-L&x\\ge%20L\\\\x+L&x\\le-L\\\\\\pi\\,(sgn\\cdot%20h+\\rho%20h^2)&\\text{otherwise}\\end{cases}">
-</p>
+Math form (plain):
 
 Where:
 L = 6*pi, s = x/pi, n = floor(s), t = s - n, h = t(1 - t), sgn = (-1)^n

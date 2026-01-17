@@ -30,11 +30,11 @@ TP6_THERMO_ENABLED=0
 
 ```
 update_every  eval_acc  eval_loss
-1             0.5430    0.6907
-2             0.5430    0.6899
-4             0.7070    0.6735
-8             0.8047    0.4310
-16            0.8047    0.4310
+1             0.5176    0.6922  (mean, 3 seeds)
+2             0.5208    0.6925  (mean, 3 seeds)
+4             0.5430    0.6829  (mean, 3 seeds)
+8             0.7129    0.5466  (mean, 3 seeds)
+16            0.7129    0.5466  (mean, 3 seeds)
 ```
 
 ## Jump Cap Check (update_every=1)
@@ -44,10 +44,19 @@ cap=1.0  eval_acc 0.5430  eval_loss 0.6907
 cap=0.2  eval_acc 0.5430  eval_loss 0.6915
 ```
 
+## Governor Run (Unified Manifold Governor)
+
+```
+steps  eval_acc  eval_loss
+400    0.8867    0.3557  (mean, 3 seeds)
+800    1.0000    0.0737  (mean, 3 seeds)
+```
+
 ## Takeaways
 
 - There is a clear cadence knee around update_every >= 8 for this micro task.
 - Jump-cap alone does not fix update_every=1 collapse.
+- Governor + longer runs remove the plateau on the micro task.
 - This is a small task; hard assoc_clean (len=32, keys=4, pairs=2) remains unstable and needs a dedicated sweep.
 
 ---

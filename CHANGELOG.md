@@ -29,6 +29,8 @@ All dates are local time (YYYY-MM-DD).
 - Config: add `TP6_PTR_SOFT_GATE` (pointer update gate for smoother control).
 - Experiments: assoc_clean cadence sweep confirms update_every >= 8 yields stable learning on small task.
 - Experiments: jump-cap alone does not fix update_every=1 collapse on small assoc_clean.
+- Experiments: governor-enabled assoc_clean (len=8) reaches 1.00 acc at 800 steps (3 seeds).
+- Config: add cadence governor controls (`TP6_PTR_UPDATE_GOV*`) combining grad-shock + flip-rate.
 - Experiments: small synthetic bench (xor/two_moons/circles/spiral/sine) logged in `docs/bench_small_prime.md`.
 - Docs: add bench charts (accuracy + sine MSE) embedded in README.
 - Docs: add trigger-based publicity roadmap (`docs/roadmap_publicity.md`).

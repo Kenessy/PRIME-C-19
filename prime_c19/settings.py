@@ -79,6 +79,14 @@ class Settings:
     ptr_update_every_step: int
     ptr_update_target_flip: float
     ptr_update_ema: float
+    ptr_update_governor: bool
+    ptr_update_gov_warmup: int
+    ptr_update_gov_grad_high: float
+    ptr_update_gov_grad_low: float
+    ptr_update_gov_loss_flat: float
+    ptr_update_gov_loss_spike: float
+    ptr_update_gov_step_up: float
+    ptr_update_gov_step_down: float
     ptr_gate_mode: str
     ptr_gate_steps: str
     ptr_soft_gate: bool
@@ -216,6 +224,14 @@ def load_settings() -> Settings:
     ptr_update_every_step = _env_int("TP6_PTR_UPDATE_EVERY_STEP", 20)
     ptr_update_target_flip = _env_float("TP6_PTR_UPDATE_TARGET_FLIP", 0.2)
     ptr_update_ema = _env_float("TP6_PTR_UPDATE_EMA", 0.9)
+    ptr_update_governor = _env_flag("TP6_PTR_UPDATE_GOV", False)
+    ptr_update_gov_warmup = _env_int("TP6_PTR_UPDATE_GOV_WARMUP", ptr_warmup_steps)
+    ptr_update_gov_grad_high = _env_float("TP6_PTR_UPDATE_GOV_GRAD_HIGH", 45.0)
+    ptr_update_gov_grad_low = _env_float("TP6_PTR_UPDATE_GOV_GRAD_LOW", 2.0)
+    ptr_update_gov_loss_flat = _env_float("TP6_PTR_UPDATE_GOV_LOSS_FLAT", 0.001)
+    ptr_update_gov_loss_spike = _env_float("TP6_PTR_UPDATE_GOV_LOSS_SPIKE", 0.1)
+    ptr_update_gov_step_up = _env_float("TP6_PTR_UPDATE_GOV_STEP_UP", 0.5)
+    ptr_update_gov_step_down = _env_float("TP6_PTR_UPDATE_GOV_STEP_DOWN", 0.2)
     ptr_gate_mode = _env_str("TP6_PTR_GATE_MODE", "none").lower()
     ptr_gate_steps = _env_str("TP6_PTR_GATE_STEPS", "")
     ptr_soft_gate = _env_flag("TP6_PTR_SOFT_GATE", False)
@@ -359,6 +375,14 @@ def load_settings() -> Settings:
         ptr_update_every_step=ptr_update_every_step,
         ptr_update_target_flip=ptr_update_target_flip,
         ptr_update_ema=ptr_update_ema,
+        ptr_update_governor=ptr_update_governor,
+        ptr_update_gov_warmup=ptr_update_gov_warmup,
+        ptr_update_gov_grad_high=ptr_update_gov_grad_high,
+        ptr_update_gov_grad_low=ptr_update_gov_grad_low,
+        ptr_update_gov_loss_flat=ptr_update_gov_loss_flat,
+        ptr_update_gov_loss_spike=ptr_update_gov_loss_spike,
+        ptr_update_gov_step_up=ptr_update_gov_step_up,
+        ptr_update_gov_step_down=ptr_update_gov_step_down,
         ptr_gate_mode=ptr_gate_mode,
         ptr_gate_steps=ptr_gate_steps,
         ptr_soft_gate=ptr_soft_gate,

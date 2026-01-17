@@ -86,6 +86,14 @@ PTR_UPDATE_MAX = CFG.ptr_update_max
 PTR_UPDATE_EVERY_STEP = CFG.ptr_update_every_step
 PTR_UPDATE_TARGET_FLIP = CFG.ptr_update_target_flip
 PTR_UPDATE_EMA = CFG.ptr_update_ema
+PTR_UPDATE_GOV = CFG.ptr_update_governor
+PTR_UPDATE_GOV_WARMUP = CFG.ptr_update_gov_warmup
+PTR_UPDATE_GOV_GRAD_HIGH = CFG.ptr_update_gov_grad_high
+PTR_UPDATE_GOV_GRAD_LOW = CFG.ptr_update_gov_grad_low
+PTR_UPDATE_GOV_LOSS_FLAT = CFG.ptr_update_gov_loss_flat
+PTR_UPDATE_GOV_LOSS_SPIKE = CFG.ptr_update_gov_loss_spike
+PTR_UPDATE_GOV_STEP_UP = CFG.ptr_update_gov_step_up
+PTR_UPDATE_GOV_STEP_DOWN = CFG.ptr_update_gov_step_down
 PTR_GATE_MODE = CFG.ptr_gate_mode
 PTR_GATE_STEPS = CFG.ptr_gate_steps
 PTR_SOFT_GATE = CFG.ptr_soft_gate
@@ -296,6 +304,77 @@ class PanicReflex:
             walk_prob = self.walk_prob_max * self.panic_state
             return {"status": "PANIC", "inertia": inertia, "walk_prob": walk_prob}
         return {"status": "LOCKED", "inertia": self.inertia_high, "walk_prob": 0.0}
+
+
+class CadenceGovernor:
+    """Adaptive cadence controller combining flip-rate and gradient shock signals."""
+
+    def __init__(
+        self,
+        start_tau: float,
+        warmup_steps: int,
+        min_tau: int,
+        max_tau: int,
+        ema: float,
+        target_flip: float,
+        grad_high: float,
+        grad_low: float,
+        loss_flat: float,
+        loss_spike: float,
+        step_up: float,
+        step_down: float,
+    ):
+        self.tau = float(start_tau)
+        self.warmup_steps = max(0, int(warmup_steps))
+        self.min_tau = max(1, int(min_tau))
+        self.max_tau = max(self.min_tau, int(max_tau))
+        self.ema = float(ema)
+        self.target_flip = float(target_flip)
+        self.grad_high = float(grad_high)
+        self.grad_low = float(grad_low)
+        self.loss_flat = float(loss_flat)
+        self.loss_spike = float(loss_spike)
+        self.step_up = float(step_up)
+        self.step_down = float(step_down)
+        self.step_count = 0
+        self.grad_ema = None
+        self.flip_ema = None
+        self.prev_loss = None
+
+    def update(self, loss_value: float, grad_norm: float, flip_rate: float) -> int:
+        self.step_count += 1
+        if self.step_count <= self.warmup_steps:
+            return int(round(self.tau))
+
+        if grad_norm > self.grad_high:
+            self.tau = float(self.max_tau)
+            return int(round(self.tau))
+
+        if self.grad_ema is None:
+            self.grad_ema = grad_norm
+        else:
+            self.grad_ema = self.ema * self.grad_ema + (1.0 - self.ema) * grad_norm
+
+        if self.flip_ema is None:
+            self.flip_ema = flip_rate
+        else:
+            self.flip_ema = self.ema * self.flip_ema + (1.0 - self.ema) * flip_rate
+
+        if self.prev_loss is None:
+            loss_delta = 0.0
+        else:
+            loss_delta = self.prev_loss - loss_value
+        self.prev_loss = loss_value
+
+        # Slow down when turbulence is high or loss spikes.
+        if self.flip_ema > self.target_flip or self.grad_ema > self.grad_high or loss_delta < -self.loss_spike:
+            self.tau = min(self.max_tau, self.tau + self.step_up)
+        # Speed up only when laminar and loss is flat.
+        elif self.grad_ema < self.grad_low and self.flip_ema < self.target_flip * 0.5 and abs(loss_delta) < self.loss_flat:
+            self.tau = max(self.min_tau, self.tau - self.step_down)
+
+        self.tau = max(self.min_tau, min(self.max_tau, self.tau))
+        return int(round(self.tau))
 
 
 def compute_slope(losses: List[float]) -> float:
@@ -1308,6 +1387,41 @@ def train_wallclock(model, loader, dataset_name, model_name, num_classes, wall_c
             inertia_high=PANIC_INERTIA_HIGH,
             walk_prob_max=PANIC_WALK_MAX,
         )
+    cadence_gov = None
+    if PTR_UPDATE_GOV:
+        cadence_gov = CadenceGovernor(
+            start_tau=float(PTR_UPDATE_EVERY),
+            warmup_steps=PTR_UPDATE_GOV_WARMUP,
+            min_tau=PTR_UPDATE_MIN,
+            max_tau=PTR_UPDATE_MAX,
+            ema=PTR_UPDATE_EMA,
+            target_flip=PTR_UPDATE_TARGET_FLIP,
+            grad_high=PTR_UPDATE_GOV_GRAD_HIGH,
+            grad_low=PTR_UPDATE_GOV_GRAD_LOW,
+            loss_flat=PTR_UPDATE_GOV_LOSS_FLAT,
+            loss_spike=PTR_UPDATE_GOV_LOSS_SPIKE,
+            step_up=PTR_UPDATE_GOV_STEP_UP,
+            step_down=PTR_UPDATE_GOV_STEP_DOWN,
+        )
+        model.ptr_update_auto = False
+    cadence_gov = None
+    if PTR_UPDATE_GOV:
+        cadence_gov = CadenceGovernor(
+            start_tau=float(PTR_UPDATE_EVERY),
+            warmup_steps=PTR_UPDATE_GOV_WARMUP,
+            min_tau=PTR_UPDATE_MIN,
+            max_tau=PTR_UPDATE_MAX,
+            ema=PTR_UPDATE_EMA,
+            target_flip=PTR_UPDATE_TARGET_FLIP,
+            grad_high=PTR_UPDATE_GOV_GRAD_HIGH,
+            grad_low=PTR_UPDATE_GOV_GRAD_LOW,
+            loss_flat=PTR_UPDATE_GOV_LOSS_FLAT,
+            loss_spike=PTR_UPDATE_GOV_LOSS_SPIKE,
+            step_up=PTR_UPDATE_GOV_STEP_UP,
+            step_down=PTR_UPDATE_GOV_STEP_DOWN,
+        )
+        # Avoid double cadence controllers when governor is active.
+        model.ptr_update_auto = False
 
     start = time.time()
     end_time = start + wall_clock if wall_clock > 0 else float("inf")
@@ -1354,10 +1468,19 @@ def train_wallclock(model, loader, dataset_name, model_name, num_classes, wall_c
                 outputs, move_pen = model(inputs)
                 loss = criterion(outputs, targets) + LAMBDA_MOVE * move_pen
             scaler.scale(loss).backward()
+            did_unscale = False
             if GRAD_CLIP > 0.0:
                 if USE_AMP:
                     scaler.unscale_(optimizer)
+                    did_unscale = True
                 torch.nn.utils.clip_grad_norm_(model.parameters(), GRAD_CLIP)
+            if cadence_gov is not None and USE_AMP and scaler.is_enabled() and not did_unscale:
+                scaler.unscale_(optimizer)
+                did_unscale = True
+            if hasattr(model, "theta_ptr_reduced"):
+                with torch.no_grad():
+                    grad = model.theta_ptr_reduced.grad
+                    grad_norm = float(grad.norm().item()) if grad is not None else 0.0
             scaler.step(optimizer)
             scaler.update()
 
@@ -1380,6 +1503,9 @@ def train_wallclock(model, loader, dataset_name, model_name, num_classes, wall_c
                 if panic_status == "PANIC":
                     model.ptr_inertia = ctrl["inertia"]
                     model.ptr_walk_prob = ctrl["walk_prob"]
+            if cadence_gov is not None:
+                flip_rate = float(model.ptr_flip_rate) if hasattr(model, "ptr_flip_rate") else 0.0
+                model.ptr_update_every = cadence_gov.update(loss.item(), grad_norm, flip_rate)
             if hasattr(model, "pointer_hist"):
                 if pointer_hist_sum is None:
                     pointer_hist_sum = model.pointer_hist.clone()
@@ -1401,12 +1527,6 @@ def train_wallclock(model, loader, dataset_name, model_name, num_classes, wall_c
                 HEARTBEAT_SECS > 0.0 and (now - last_heartbeat) >= HEARTBEAT_SECS
             )
             if heartbeat_due and hasattr(model, "theta_ptr_reduced"):
-                with torch.no_grad():
-                    grad_norm = (
-                        model.theta_ptr_reduced.grad.norm().item()
-                        if model.theta_ptr_reduced.grad is not None
-                        else 0.0
-                    )
                 log(f"{dataset_name} | {model_name} | grad_norm(theta_ptr)={grad_norm:.4e}")
 
             if heartbeat_due:
@@ -1414,7 +1534,7 @@ def train_wallclock(model, loader, dataset_name, model_name, num_classes, wall_c
                 elapsed = now - start
                 log(
                     f"{dataset_name} | {model_name} | step {step:04d} | loss {loss.item():.4f} | "
-                    f"t={elapsed:.1f}s | ctrl(inertia={model.ptr_inertia:.2f}, deadzone={model.ptr_deadzone:.2f}, walk={model.ptr_walk_prob:.2f})"
+                    f"t={elapsed:.1f}s | ctrl(inertia={model.ptr_inertia:.2f}, deadzone={model.ptr_deadzone:.2f}, walk={model.ptr_walk_prob:.2f}, cadence={model.ptr_update_every})"
                     + (f" | panic={panic_status}" if panic_reflex is not None else "")
                 )
                 live_due = LIVE_TRACE_EVERY > 0 and (step % LIVE_TRACE_EVERY == 0)
@@ -1634,10 +1754,20 @@ def train_steps(model, loader, steps, dataset_name, model_name):
             outputs, move_pen = model(inputs)
             loss = criterion(outputs, targets) + LAMBDA_MOVE * move_pen
         scaler.scale(loss).backward()
+        did_unscale = False
         if GRAD_CLIP > 0.0:
             if USE_AMP:
                 scaler.unscale_(optimizer)
+                did_unscale = True
             torch.nn.utils.clip_grad_norm_(model.parameters(), GRAD_CLIP)
+        if cadence_gov is not None and USE_AMP and scaler.is_enabled() and not did_unscale:
+            scaler.unscale_(optimizer)
+            did_unscale = True
+        grad_norm_step = 0.0
+        if hasattr(model, "theta_ptr_reduced"):
+            with torch.no_grad():
+                grad = model.theta_ptr_reduced.grad
+                grad_norm_step = float(grad.norm().item()) if grad is not None else 0.0
         scaler.step(optimizer)
         scaler.update()
 
@@ -1665,25 +1795,23 @@ def train_steps(model, loader, steps, dataset_name, model_name):
             if panic_status == "PANIC":
                 model.ptr_inertia = ctrl["inertia"]
                 model.ptr_walk_prob = ctrl["walk_prob"]
+        if cadence_gov is not None:
+            flip_rate = float(model.ptr_flip_rate) if hasattr(model, "ptr_flip_rate") else 0.0
+            model.ptr_update_every = cadence_gov.update(loss.item(), grad_norm_step, flip_rate)
         now = time.time()
         grad_norm = None
         heartbeat_due = (step % HEARTBEAT_STEPS == 0) or (
             HEARTBEAT_SECS > 0.0 and (now - last_heartbeat) >= HEARTBEAT_SECS
         )
         if heartbeat_due and hasattr(model, "theta_ptr_reduced"):
-            with torch.no_grad():
-                grad_norm = (
-                    model.theta_ptr_reduced.grad.norm().item()
-                    if model.theta_ptr_reduced.grad is not None
-                    else 0.0
-                )
+            grad_norm = grad_norm_step
             log(f"{dataset_name} | {model_name} | grad_norm(theta_ptr)={grad_norm:.4e}")
         if heartbeat_due:
             last_heartbeat = now
             elapsed = now - start
             log(
                 f"{dataset_name} | {model_name} | step {step:04d}/{steps:04d} | loss {loss.item():.4f} | "
-                f"t={elapsed:.1f}s | ctrl(inertia={model.ptr_inertia:.2f}, deadzone={model.ptr_deadzone:.2f}, walk={model.ptr_walk_prob:.2f})"
+                f"t={elapsed:.1f}s | ctrl(inertia={model.ptr_inertia:.2f}, deadzone={model.ptr_deadzone:.2f}, walk={model.ptr_walk_prob:.2f}, cadence={model.ptr_update_every})"
                 + (f" | panic={panic_status}" if panic_reflex is not None else "")
             )
             if DEBUG_STATS and getattr(model, "debug_stats", None):
