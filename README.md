@@ -193,6 +193,9 @@ only and should not be treated as validated results.
 
 - Spinor-lifted hyperbolic bundle: lift the ring into a hyperbolic bulk and
   represent jumps as isometries. This would be a full redesign, not a patch.
+- Renormalized Mobius-hyperbolic Clifford bundle: seam-free double-cover base
+  plus hyperbolic fiber and structure-preserving updates. High potential but
+  requires a full redesign (not implemented).
 - Post-jump momentum damping: apply a short cooldown to pointer velocity or
   jump probability for tau steps after a jump to reduce turbulence. This is a
   small, testable idea we may prototype next.
