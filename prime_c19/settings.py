@@ -266,7 +266,7 @@ def load_settings() -> Settings:
     run_mode = _env_str("TP6_MODE", "train")
 
     checkpoint_path = _env_str("TP6_CKPT", os.path.join(root, "checkpoint.pt"))
-    save_every_steps = _env_int("TP6_SAVE_EVERY", 0)
+    save_every_steps = _env_int("TP6_SAVE_EVERY", 100)
     resume = _env_flag("TP6_RESUME", False)
     loss_keep = _env_int("TP6_LOSS_KEEP", 2000)
 

@@ -9,6 +9,7 @@ All dates are local time (YYYY-MM-DD).
 - Refactor: centralize env parsing in `prime_c19/settings.py` and map into legacy globals.
 - Refactor: move A/B artifacts into `artifacts/ab_runs/` and move legacy scripts/tools into `tools/`.
 - Config: default activation switched to C-19 (`TP6_ACT=c19`).
+- Config: default auto-checkpoint interval set to 100 steps (`TP6_SAVE_EVERY=100`).
 - Docs: add update notes and patch references.
 - Data: add `artifacts/ab_runs/proof_ab.csv` (short A/B smoke, 60 steps, seed 123) and updated summary JSONs.
 
