@@ -112,7 +112,8 @@ silu eval_acc 0.4912  eval_loss 0.7754
 
 ---
 
-## Quick Start (Micro Assoc Clean)
+<details>
+<summary><strong>Quick Start (Micro Assoc Clean)</strong></summary>
 
 ```
 set TP6_SYNTH=1
@@ -137,6 +138,8 @@ set TP6_THERMO_ENABLED=0
 
 python tournament_phase6.py
 ```
+
+</details>
 
 ---
 
@@ -168,7 +171,8 @@ Where:
 L = 6*pi, s = x/pi, n = floor(s), t = s - n, h = t(1 - t), sgn = (-1)^n
 Default rho = 4.0
 
-Reference equation (as implemented):
+<details>
+<summary><strong>Reference Equation (as implemented)</strong></summary>
 
 ```
 Let L = 6*pi
@@ -184,6 +188,8 @@ C19(x) = x - L                      if x >=  L
 
 Default rho = 4.0
 ```
+
+</details>
 
 ---
 
