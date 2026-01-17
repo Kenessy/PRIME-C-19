@@ -73,6 +73,12 @@ Default rho = 4.0
 
 ---
 
+## Known Issues (Active)
+
+- assoc_clean (no-noise recall): CE gradients are zero in current diagnostics, so learning signal is blocked. Investigation in progress (see CHANGELOG.md).
+
+---
+
 ## Evolution Mode (optional)
 
 Use evolution to explore weight space with short training bursts.
@@ -85,6 +91,19 @@ Use evolution to explore weight space with short training bursts.
 - Pointer-only mutations: TP6_EVO_POINTER_ONLY=1
 - Checkpoints: TP6_EVO_CKPT_EVERY (per-gen) and evo_latest.pt
 - Resume: TP6_EVO_RESUME=1 (seed new population from evo_latest.pt)
+
+---
+
+## Synthetic Modes (no download)
+
+Set `TP6_SYNTH=1` to use synthetic data instead of MNIST.
+
+- `TP6_SYNTH_MODE=markov0`: label is last bit.
+- `TP6_SYNTH_MODE=markov0_flip`: label is inverse of last bit.
+- `TP6_SYNTH_MODE=const0`: label always 0.
+- `TP6_SYNTH_MODE=hand_kv`: load `data/hand_kv.jsonl`.
+- `TP6_SYNTH_MODE=assoc_clean`: no-noise associative recall.
+  - Configure with `TP6_ASSOC_KEYS` and `TP6_ASSOC_PAIRS`.
 
 ---
 

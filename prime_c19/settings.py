@@ -141,6 +141,8 @@ class Settings:
     synth_shuffle: bool
     synth_mode: str
     hand_min: int
+    assoc_keys: int
+    assoc_pairs: int
 
     evo_pop: int
     evo_gens: int
@@ -149,6 +151,10 @@ class Settings:
     evo_pointer_only: bool
     evo_checkpoint_every: int
     evo_resume: bool
+    evo_checkpoint_individual: bool
+    evo_progress: bool
+    train_trace: bool
+    train_trace_path: str
 
 
 def load_settings() -> Settings:
@@ -279,6 +285,8 @@ def load_settings() -> Settings:
     synth_shuffle = _env_flag("TP6_SYNTH_SHUFFLE", False)
     synth_mode = _env_str("TP6_SYNTH_MODE", "random").lower()
     hand_min = _env_int("TP6_HAND_MIN", 256)
+    assoc_keys = _env_int("TP6_ASSOC_KEYS", 4)
+    assoc_pairs = _env_int("TP6_ASSOC_PAIRS", 3)
 
     evo_pop = _env_int("TP6_EVO_POP", 6)
     evo_gens = _env_int("TP6_EVO_GENS", 3)
@@ -287,6 +295,13 @@ def load_settings() -> Settings:
     evo_pointer_only = _env_flag("TP6_EVO_POINTER_ONLY", False)
     evo_checkpoint_every = _env_int("TP6_EVO_CKPT_EVERY", 1)
     evo_resume = _env_flag("TP6_EVO_RESUME", False)
+    evo_checkpoint_individual = _env_flag("TP6_EVO_CKPT_INDIV", True)
+    evo_progress = _env_flag("TP6_EVO_PROGRESS", True)
+    train_trace = _env_flag("TP6_TRAIN_TRACE", False)
+    train_trace_path = _env_str(
+        "TP6_TRAIN_TRACE_PATH",
+        os.path.join(root, "traces", "current", "train_steps_trace.jsonl"),
+    )
 
     return Settings(
         root=root,
@@ -394,6 +409,8 @@ def load_settings() -> Settings:
         synth_shuffle=synth_shuffle,
         synth_mode=synth_mode,
         hand_min=hand_min,
+        assoc_keys=assoc_keys,
+        assoc_pairs=assoc_pairs,
         evo_pop=evo_pop,
         evo_gens=evo_gens,
         evo_steps=evo_steps,
@@ -401,4 +418,8 @@ def load_settings() -> Settings:
         evo_pointer_only=evo_pointer_only,
         evo_checkpoint_every=evo_checkpoint_every,
         evo_resume=evo_resume,
+        evo_checkpoint_individual=evo_checkpoint_individual,
+        evo_progress=evo_progress,
+        train_trace=train_trace,
+        train_trace_path=train_trace_path,
     )

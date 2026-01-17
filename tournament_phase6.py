@@ -155,6 +155,8 @@ SYNTH_LEN = CFG.synth_len
 SYNTH_SHUFFLE = CFG.synth_shuffle
 SYNTH_MODE = CFG.synth_mode
 HAND_MIN = CFG.hand_min
+ASSOC_KEYS = CFG.assoc_keys
+ASSOC_PAIRS = CFG.assoc_pairs
 SYNTH_META = {}
 # Evolution defaults (small to keep runs short/safe)
 EVO_POP = CFG.evo_pop
@@ -164,6 +166,10 @@ EVO_MUT_STD = CFG.evo_mut_std
 EVO_POINTER_ONLY = CFG.evo_pointer_only
 EVO_CKPT_EVERY = CFG.evo_checkpoint_every
 EVO_RESUME = CFG.evo_resume
+EVO_CKPT_INDIV = CFG.evo_checkpoint_individual
+EVO_PROGRESS = CFG.evo_progress
+TRAIN_TRACE = CFG.train_trace
+TRAIN_TRACE_PATH = CFG.train_trace_path
 
 
 def set_seed(seed: int) -> None:
@@ -714,25 +720,36 @@ class AbsoluteHallway(nn.Module):
                 ptr_float_phys = ptr_int.float()
             if DEBUG_STATS and (DEBUG_EVERY <= 0 or t % DEBUG_EVERY == 0):
                 stats = {
+                    "active_rate": float(active_mask.float().mean().item()),
                     "ptr_float_min": float(ptr_float.min().item()),
                     "ptr_float_max": float(ptr_float.max().item()),
+                    "ptr_float_mean": float(ptr_float.mean().item()),
+                    "ptr_float_std": float(ptr_float.std(unbiased=False).item()),
                     "ptr_delta_abs_mean": float(delta.abs().mean().item()),
                     "ptr_delta_abs_max": float(delta.abs().max().item()),
                     "ptr_int_unique": int(ptr_int.unique().numel()),
+                    "ptr_int_min": int(ptr_int.min().item()),
+                    "ptr_int_max": int(ptr_int.max().item()),
                     "cur_abs_max": float(cur.abs().max().item()),
+                    "cur_abs_mean": float(cur.abs().mean().item()),
                     "upd_abs_max": float(upd.abs().max().item()),
+                    "upd_abs_mean": float(upd.abs().mean().item()),
                 }
                 if jump_p is not None:
                     stats["jump_p_mean"] = float(jump_p.mean().item())
                     stats["jump_p_min"] = float(jump_p.min().item())
                     stats["jump_p_max"] = float(jump_p.max().item())
+                    stats["jump_p_std"] = float(jump_p.std(unbiased=False).item())
                 if move_mask is not None:
                     stats["move_mask_mean"] = float(move_mask.mean().item())
+                    stats["move_mask_std"] = float(move_mask.std(unbiased=False).item())
                 if gate is not None:
                     stats["gate_mean"] = float(gate.mean().item())
+                    stats["gate_std"] = float(gate.std(unbiased=False).item())
                 if self.ptr_vel_enabled:
                     stats["ptr_vel_abs_mean"] = float(ptr_vel.abs().mean().item())
                     stats["ptr_vel_abs_max"] = float(ptr_vel.abs().max().item())
+                    stats["ptr_vel_std"] = float(ptr_vel.std(unbiased=False).item())
                 stats["ptr_update_every"] = int(self.ptr_update_every)
                 stats["ptr_soft_gate"] = int(self.ptr_soft_gate)
                 stats["ptr_vel_enabled"] = int(self.ptr_vel_enabled)
@@ -959,6 +976,68 @@ def get_seq_mnist_loader():
             y = (1 - x[:, -1, 0]).to(torch.long)
         elif synth_mode == "const0":
             y = torch.zeros((n_samples,), dtype=torch.long)
+        elif synth_mode == "assoc_clean":
+            seq_len = int(SYNTH_LEN)
+            pairs = max(1, int(ASSOC_PAIRS))
+            keys = max(2, int(ASSOC_KEYS))
+            min_len = pairs * 2 + 1
+            if seq_len < min_len:
+                raise RuntimeError(
+                    f"assoc_clean requires SYNTH_LEN >= {min_len} (got {seq_len})"
+                )
+            x = torch.zeros((n_samples, seq_len, 1), dtype=torch.float32)
+            y = torch.zeros((n_samples,), dtype=torch.long)
+            max_start = seq_len - 3  # reserve last token for query
+            for idx in range(n_samples):
+                used = set()
+                pair_specs = []
+                for _ in range(pairs):
+                    t = None
+                    for _ in range(1000):
+                        cand = random.randint(0, max_start)
+                        if cand in used or (cand + 1) in used:
+                            continue
+                        t = cand
+                        break
+                    if t is None:
+                        raise RuntimeError("assoc_clean: failed to place non-overlapping pairs")
+                    used.add(t)
+                    used.add(t + 1)
+                    key_id = random.randint(0, keys - 1)
+                    val = random.randint(0, 1)
+                    key_token = float(2 + key_id)
+                    val_token = -1.0 if val == 0 else -2.0
+                    x[idx, t, 0] = key_token
+                    x[idx, t + 1, 0] = val_token
+                    pair_specs.append((key_id, val, key_token))
+                _, q_val, q_token = random.choice(pair_specs)
+                x[idx, -1, 0] = q_token
+                y[idx] = q_val
+            SYNTH_META.update({"assoc_keys": keys, "assoc_pairs": pairs, "synth_len": seq_len})
+            num_classes = 2
+            log(f"[synth] mode=assoc_clean rows={int(n_samples)} keys={keys} pairs={pairs} len={seq_len}")
+            class _Synth(torch.utils.data.Dataset):
+                def __len__(self):
+                    return n_samples
+
+                def __getitem__(self, item):
+                    return x[item], y[item]
+
+            ds = _Synth()
+
+            def collate(batch):
+                xs, ys = zip(*batch)
+                return torch.stack(xs, dim=0), torch.tensor(ys, dtype=torch.long)
+
+            loader = DataLoader(
+                ds,
+                batch_size=BATCH_SIZE,
+                shuffle=True,
+                num_workers=0,
+                pin_memory=False,
+                collate_fn=collate,
+            )
+            return loader, num_classes, collate
         elif synth_mode == "hand_kv":
             hand_path = os.environ.get("TP6_HAND_PATH", os.path.join(DATA_DIR, "hand_kv.jsonl"))
             pad_len = int(os.environ.get("TP6_HAND_PAD_LEN", "0"))
@@ -1497,6 +1576,10 @@ def train_steps(model, loader, steps, dataset_name, model_name):
     step = 0
     start = time.time()
     last_heartbeat = start
+    train_trace_enabled = TRAIN_TRACE
+    train_trace_path = TRAIN_TRACE_PATH
+    if train_trace_enabled:
+        os.makedirs(os.path.dirname(train_trace_path), exist_ok=True)
     pointer_hist_sum = None
     satiety_exits = 0
     losses = []
@@ -1565,6 +1648,7 @@ def train_steps(model, loader, steps, dataset_name, model_name):
                 model.ptr_inertia = ctrl["inertia"]
                 model.ptr_walk_prob = ctrl["walk_prob"]
         now = time.time()
+        grad_norm = None
         heartbeat_due = (step % HEARTBEAT_STEPS == 0) or (
             HEARTBEAT_SECS > 0.0 and (now - last_heartbeat) >= HEARTBEAT_SECS
         )
@@ -1584,6 +1668,56 @@ def train_steps(model, loader, steps, dataset_name, model_name):
                 f"t={elapsed:.1f}s | ctrl(inertia={model.ptr_inertia:.2f}, deadzone={model.ptr_deadzone:.2f}, walk={model.ptr_walk_prob:.2f})"
                 + (f" | panic={panic_status}" if panic_reflex is not None else "")
             )
+            if DEBUG_STATS and getattr(model, "debug_stats", None):
+                try:
+                    stats_payload = json.dumps(model.debug_stats, separators=(",", ":"))
+                except Exception:
+                    stats_payload = str(model.debug_stats)
+                log(f"{dataset_name} | {model_name} | debug {stats_payload}")
+            if train_trace_enabled:
+                pointer_entropy = None
+                pointer_total = None
+                if hasattr(model, "pointer_hist") and model.pointer_hist is not None:
+                    hist_np = model.pointer_hist.cpu().numpy()
+                    total = float(hist_np.sum())
+                    if total > 0.0:
+                        probs = hist_np / total
+                        pointer_entropy = float(-(probs * np.log(probs + 1e-12)).sum())
+                        pointer_total = int(total)
+                trace = {
+                    "ts": time.time(),
+                    "dataset": dataset_name,
+                    "model": model_name,
+                    "step": step,
+                    "steps_total": steps,
+                    "loss": float(loss.item()),
+                    "grad_norm_theta_ptr": grad_norm,
+                    "ctrl": {
+                        "inertia": float(model.ptr_inertia),
+                        "deadzone": float(model.ptr_deadzone),
+                        "walk": float(model.ptr_walk_prob),
+                    },
+                    "panic": panic_status,
+                    "ptr_flip_rate": getattr(model, "ptr_flip_rate", None),
+                    "ptr_mean_dwell": getattr(model, "ptr_mean_dwell", None),
+                    "ptr_max_dwell": getattr(model, "ptr_max_dwell", None),
+                    "ptr_delta_abs_mean": getattr(model, "ptr_delta_abs_mean", None),
+                    "pointer_entropy": pointer_entropy,
+                    "pointer_total": pointer_total,
+                    "satiety_exits": getattr(model, "satiety_exits", None),
+                    "state_loop_entropy": getattr(model, "state_loop_entropy", None),
+                    "state_loop_flip_rate": getattr(model, "state_loop_flip_rate", None),
+                    "state_loop_abab_rate": getattr(model, "state_loop_abab_rate", None),
+                    "state_loop_mean_dwell": getattr(model, "state_loop_mean_dwell", None),
+                    "state_loop_max_dwell": getattr(model, "state_loop_max_dwell", None),
+                }
+                if DEBUG_STATS and getattr(model, "debug_stats", None):
+                    trace["debug"] = model.debug_stats
+                try:
+                    with open(train_trace_path, "a", encoding="utf-8") as f:
+                        f.write(json.dumps(trace) + "\n")
+                except Exception as e:
+                    log(f"train_trace write failed: {e}")
         if hasattr(model, "ptr_mean_dwell"):
             ptr_mean_dwell_sum += float(model.ptr_mean_dwell)
         if hasattr(model, "ptr_delta_abs_mean"):
@@ -1592,6 +1726,25 @@ def train_steps(model, loader, steps, dataset_name, model_name):
             ptr_max_dwell = max(ptr_max_dwell, int(model.ptr_max_dwell))
         del outputs, loss
         step += 1
+        if SAVE_EVERY_STEPS > 0 and step % SAVE_EVERY_STEPS == 0:
+            ckpt_path = CHECKPOINT_PATH
+            if model_name.startswith("evo_"):
+                if not EVO_CKPT_INDIV:
+                    continue
+                evo_step_dir = os.path.join(ROOT, "artifacts", "evolution", "step_ckpts")
+                os.makedirs(evo_step_dir, exist_ok=True)
+                ckpt_path = os.path.join(evo_step_dir, f"{model_name}_step_{step:04d}.pt")
+            torch.save(
+                {
+                    "model": model.state_dict(),
+                    "optim": optimizer.state_dict(),
+                    "scaler": scaler.state_dict() if USE_AMP else None,
+                    "step": step,
+                    "losses": losses,
+                },
+                ckpt_path,
+            )
+            log(f"Checkpoint saved @ step {step} -> {ckpt_path}")
     slope = compute_slope(losses)
     ptr_flip_rate = (ptr_flip_sum / ptr_steps) if ptr_steps else None
     ptr_mean_dwell = (ptr_mean_dwell_sum / ptr_steps) if ptr_steps else None
@@ -1702,7 +1855,8 @@ def run_evolution(dataset_name, loader, eval_loader, input_dim, num_classes):
         elites = gen_fitness[:topk]
         if best_eval is None or elites[0][0] > best_eval[0]:
             best_eval = elites[0]
-        log(f"Gen {gen}: best_acc={elites[0][3]['eval_acc']:.4f}, loss={elites[0][3]['eval_loss']:.4f}")
+        if EVO_PROGRESS:
+            log(f"Gen {gen}: best_acc={elites[0][3]['eval_acc']:.4f}, loss={elites[0][3]['eval_loss']:.4f}")
         save_evo_checkpoint(gen, elites[0][1], elites[0][2], elites[0][3], elites[0][0])
 
         # Refill population
