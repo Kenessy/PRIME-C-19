@@ -642,6 +642,18 @@ class AbsoluteHallway(nn.Module):
                 state = state.clamp(-STATE_CLIP, STATE_CLIP)
 
             prev_ptr = ptr_float
+            # Read pointer (pre-update) so reads align with the location just written.
+            ptr_read_phys = torch.remainder(prev_ptr, ring_range)
+            if self.ptr_phantom and prev_ptr_int is not None:
+                ptr_read_base = torch.floor(ptr_read_phys)
+                ptr_read_off = torch.floor(torch.remainder(ptr_read_phys + self.ptr_phantom_off, ring_range))
+                read_agree = ptr_read_base == ptr_read_off
+                ptr_read_int = torch.where(read_agree, ptr_read_base, prev_ptr_int.float())
+            else:
+                ptr_read_int = torch.floor(ptr_read_phys)
+            ptr_read_int = torch.clamp(ptr_read_int, 0, ring_range - 1).long()
+            if self.ptr_phantom_read:
+                ptr_read_phys = ptr_read_int.float()
             jump_p = None
             move_mask = None
             gate = None
@@ -705,7 +717,7 @@ class AbsoluteHallway(nn.Module):
             delta = torch.remainder(ptr_float - prev_ptr + ring_range / 2, ring_range) - ring_range / 2
             movement_cost = movement_cost + delta.abs().mean()
 
-            # update history tensorized: prepend ptr, drop last
+            # update history tensorized: prepend read ptr, drop last
             ptr_float_phys = torch.remainder(ptr_float, ring_range)
             ptr_base = torch.floor(ptr_float_phys)
             if self.ptr_phantom and prev_ptr_int is not None:
@@ -759,7 +771,7 @@ class AbsoluteHallway(nn.Module):
                     stats["ptr_edge_rate"] = float(edge_mask.float().mean().item())
                 stats["ptr_kernel"] = self.ptr_kernel
                 self.debug_stats = stats
-            last_ptrs = torch.cat([ptr_int.view(B, 1), last_ptrs[:, :-1]], dim=1)
+            last_ptrs = torch.cat([ptr_read_int.view(B, 1), last_ptrs[:, :-1]], dim=1)
             bins = torch.bucketize(ptr_int.float(), self.bin_edges.to(device)) - 1
             bins = bins.clamp(0, self.pointer_hist_bins - 1)
             # Count all samples this step; bincount avoids accidental batch collapse
@@ -808,7 +820,7 @@ class AbsoluteHallway(nn.Module):
                 k = self.soft_readout_k
                 offsets = torch.arange(-k, k + 1, device=device, dtype=ptr_float_phys.dtype)
                 pos_idx, w, _ = self._compute_kernel_weights(
-                    ptr_float_phys, offsets, ring_range, tau_override=self.soft_readout_tau
+                    ptr_read_phys, offsets, ring_range, tau_override=self.soft_readout_tau
                 )
                 pos_idx_exp = pos_idx.unsqueeze(-1).expand(-1, -1, self.slot_dim)
                 gathered = state.gather(1, pos_idx_exp)
@@ -831,7 +843,7 @@ class AbsoluteHallway(nn.Module):
             k = self.soft_readout_k
             offsets = torch.arange(-k, k + 1, device=device, dtype=ptr_float_phys.dtype)
             pos_idx, w, _ = self._compute_kernel_weights(
-                ptr_float_phys, offsets, ring_range, tau_override=self.soft_readout_tau
+                ptr_read_phys, offsets, ring_range, tau_override=self.soft_readout_tau
             )
             pos_idx_exp = pos_idx.unsqueeze(-1).expand(-1, -1, self.slot_dim)
             gathered = state.gather(1, pos_idx_exp)

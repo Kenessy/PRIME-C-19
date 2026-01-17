@@ -19,7 +19,8 @@ All dates are local time (YYYY-MM-DD).
 - Logging: optional per-step evolution checkpoints (`TP6_EVO_CKPT_INDIV=1`) and train trace JSONL (`TP6_TRAIN_TRACE=1`).
 - Logging: expanded debug stats to include pointer entropy, satiety exits, and state-loop metrics in traces.
 - Data: added `assoc_clean` synthetic mode (no-noise associative recall) with `TP6_ASSOC_KEYS/TP6_ASSOC_PAIRS`.
-- Diagnostics: adversarial checks pass for ring-wrap lerp and kernel continuity; assoc_clean CE gradients are zero (learning signal blocked, under investigation).
+- Fix: readout now uses pre-update pointer (aligns read with write). Restores CE gradients on assoc_clean.
+- Diagnostics: adversarial checks pass for ring-wrap lerp and kernel continuity.
 - Docs: add update notes and patch references.
 - Data: add `artifacts/ab_runs/proof_ab.csv` (short A/B smoke, 60 steps, seed 123) and updated summary JSONs.
 

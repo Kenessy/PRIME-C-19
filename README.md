@@ -75,7 +75,7 @@ Default rho = 4.0
 
 ## Known Issues (Active)
 
-- assoc_clean (no-noise recall): CE gradients are zero in current diagnostics, so learning signal is blocked. Investigation in progress (see CHANGELOG.md).
+- assoc_clean (no-noise recall): gradients restored after pre-update readout fix, but short smoke runs still do not reliably decrease loss (tuning pending).
 
 ---
 
