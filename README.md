@@ -26,7 +26,7 @@ updates to keep memory stable on a ring.
 ## Hypothesis (Speculative)
 
 **The Theory of Thought:** 
-**The Principle of Topological Recursion" (PTR)**
+**The Principle of Topological Recursion (PTR)**
 
 We argue the key result is not just the
 program but the **logic**: a finite recurrent system can represent complexity
