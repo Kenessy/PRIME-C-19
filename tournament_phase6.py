@@ -3,6 +3,7 @@ import time
 import math
 import json
 import random
+from itertools import count
 import shutil
 import urllib.request
 import zipfile
@@ -160,6 +161,9 @@ EVO_POP = CFG.evo_pop
 EVO_GENS = CFG.evo_gens
 EVO_STEPS = CFG.evo_steps
 EVO_MUT_STD = CFG.evo_mut_std
+EVO_POINTER_ONLY = CFG.evo_pointer_only
+EVO_CKPT_EVERY = CFG.evo_checkpoint_every
+EVO_RESUME = CFG.evo_resume
 
 
 def set_seed(seed: int) -> None:
@@ -1273,9 +1277,12 @@ def train_wallclock(model, loader, dataset_name, model_name, num_classes, wall_c
                 flip_ema = apply_thermostat(model, float(model.ptr_flip_rate), flip_ema)
             if panic_reflex is not None:
                 ctrl = panic_reflex.update(float(loss))
-                model.ptr_inertia = ctrl["inertia"]
-                model.ptr_walk_prob = ctrl["walk_prob"]
                 panic_status = ctrl["status"]
+                # Only override controls when actually panicking; otherwise allow
+                # thermostat/manual settings to remain in effect.
+                if panic_status == "PANIC":
+                    model.ptr_inertia = ctrl["inertia"]
+                    model.ptr_walk_prob = ctrl["walk_prob"]
             if hasattr(model, "pointer_hist"):
                 if pointer_hist_sum is None:
                     pointer_hist_sum = model.pointer_hist.clone()
@@ -1488,6 +1495,8 @@ def train_steps(model, loader, steps, dataset_name, model_name):
     scaler = amp_grad_scaler()
     it = iter(loader)
     step = 0
+    start = time.time()
+    last_heartbeat = start
     pointer_hist_sum = None
     satiety_exits = 0
     losses = []
@@ -1547,13 +1556,34 @@ def train_steps(model, loader, steps, dataset_name, model_name):
         if hasattr(model, "ptr_flip_rate"):
             ptr_flip_sum += float(model.ptr_flip_rate)
             ptr_steps += 1
-            if THERMO_ENABLED and step % max(1, THERMO_EVERY) == 0:
-                flip_ema = apply_thermostat(model, float(model.ptr_flip_rate), flip_ema)
+        if THERMO_ENABLED and step % max(1, THERMO_EVERY) == 0:
+            flip_ema = apply_thermostat(model, float(model.ptr_flip_rate), flip_ema)
         if panic_reflex is not None:
             ctrl = panic_reflex.update(float(loss))
-            model.ptr_inertia = ctrl["inertia"]
-            model.ptr_walk_prob = ctrl["walk_prob"]
             panic_status = ctrl["status"]
+            if panic_status == "PANIC":
+                model.ptr_inertia = ctrl["inertia"]
+                model.ptr_walk_prob = ctrl["walk_prob"]
+        now = time.time()
+        heartbeat_due = (step % HEARTBEAT_STEPS == 0) or (
+            HEARTBEAT_SECS > 0.0 and (now - last_heartbeat) >= HEARTBEAT_SECS
+        )
+        if heartbeat_due and hasattr(model, "theta_ptr_reduced"):
+            with torch.no_grad():
+                grad_norm = (
+                    model.theta_ptr_reduced.grad.norm().item()
+                    if model.theta_ptr_reduced.grad is not None
+                    else 0.0
+                )
+            log(f"{dataset_name} | {model_name} | grad_norm(theta_ptr)={grad_norm:.4e}")
+        if heartbeat_due:
+            last_heartbeat = now
+            elapsed = now - start
+            log(
+                f"{dataset_name} | {model_name} | step {step:04d}/{steps:04d} | loss {loss.item():.4f} | "
+                f"t={elapsed:.1f}s | ctrl(inertia={model.ptr_inertia:.2f}, deadzone={model.ptr_deadzone:.2f}, walk={model.ptr_walk_prob:.2f})"
+                + (f" | panic={panic_status}" if panic_reflex is not None else "")
+            )
         if hasattr(model, "ptr_mean_dwell"):
             ptr_mean_dwell_sum += float(model.ptr_mean_dwell)
         if hasattr(model, "ptr_delta_abs_mean"):
@@ -1578,10 +1608,22 @@ def train_steps(model, loader, steps, dataset_name, model_name):
     }
 
 
-def mutate_state_dict(parent_state, std=EVO_MUT_STD):
+def _is_pointer_param(name: str) -> bool:
+    return (
+        name.startswith("theta_ptr_reduced")
+        or name.startswith("theta_gate_reduced")
+        or name.startswith("jump_score")
+        or name.startswith("gate_head")
+    )
+
+
+def mutate_state_dict(parent_state, std=EVO_MUT_STD, pointer_only: bool = False):
     child = {}
     for k, v in parent_state.items():
         if not torch.is_floating_point(v):
+            child[k] = v.clone()
+            continue
+        if pointer_only and not _is_pointer_param(k):
             child[k] = v.clone()
             continue
         noise = torch.randn_like(v, device="cpu") * std
@@ -1589,16 +1631,65 @@ def mutate_state_dict(parent_state, std=EVO_MUT_STD):
     return child
 
 
+def save_evo_checkpoint(gen: int, model, train_stats, eval_stats, fitness: float) -> None:
+    evo_dir = os.path.join(ROOT, "artifacts", "evolution")
+    os.makedirs(evo_dir, exist_ok=True)
+    payload = {
+        "gen": gen,
+        "model": model.state_dict(),
+        "train": train_stats,
+        "eval": eval_stats,
+        "fitness": fitness,
+    }
+    latest_path = os.path.join(evo_dir, "evo_latest.pt")
+    torch.save(payload, latest_path)
+    if EVO_CKPT_EVERY > 0 and gen % EVO_CKPT_EVERY == 0:
+        gen_path = os.path.join(evo_dir, f"evo_gen_{gen:06d}.pt")
+        torch.save(payload, gen_path)
+        log(f"Evolution checkpoint saved @ gen {gen} -> {gen_path}")
+
+
 def run_evolution(dataset_name, loader, eval_loader, input_dim, num_classes):
-    log(f"=== Evolution mode | dataset={dataset_name} | pop={EVO_POP} gens={EVO_GENS} steps/ind={EVO_STEPS} ===")
+    evo_dir = os.path.join(ROOT, "artifacts", "evolution")
+    evo_latest = os.path.join(evo_dir, "evo_latest.pt")
+    resume_state = None
+    start_gen = 0
+    if EVO_RESUME and os.path.exists(evo_latest):
+        try:
+            payload = torch.load(evo_latest, map_location="cpu")
+            resume_state = payload.get("model")
+            start_gen = int(payload.get("gen", -1)) + 1
+            log(f"Evolution resume: loaded {evo_latest} (start_gen={start_gen})")
+        except Exception as e:
+            log(f"Evolution resume failed: {e}; starting fresh.")
+    log(
+        "=== Evolution mode | dataset="
+        f"{dataset_name} | pop={EVO_POP} gens={EVO_GENS} steps/ind={EVO_STEPS} "
+        f"pointer_only={int(EVO_POINTER_ONLY)} resume={int(EVO_RESUME)} start_gen={start_gen} ==="
+    )
     # init population
     population = []
-    for i in range(EVO_POP):
-        m = AbsoluteHallway(input_dim=input_dim, num_classes=num_classes, ring_len=RING_LEN, slot_dim=8)
-        population.append(m)
+    if resume_state is not None:
+        elite = AbsoluteHallway(input_dim=input_dim, num_classes=num_classes, ring_len=RING_LEN, slot_dim=8)
+        elite.load_state_dict(resume_state)
+        population.append(elite)
+        while len(population) < EVO_POP:
+            child = AbsoluteHallway(input_dim=input_dim, num_classes=num_classes, ring_len=RING_LEN, slot_dim=8)
+            child.load_state_dict(
+                mutate_state_dict(resume_state, std=EVO_MUT_STD, pointer_only=EVO_POINTER_ONLY)
+            )
+            population.append(child)
+    else:
+        for _ in range(EVO_POP):
+            m = AbsoluteHallway(input_dim=input_dim, num_classes=num_classes, ring_len=RING_LEN, slot_dim=8)
+            population.append(m)
 
     best_eval = None
-    for gen in range(EVO_GENS):
+    if EVO_GENS > 0:
+        gen_iter = range(start_gen, start_gen + EVO_GENS)
+    else:
+        gen_iter = count(start_gen)
+    for gen in gen_iter:
         gen_fitness = []
         for idx, model in enumerate(population):
             train_stats = train_steps(model, loader, EVO_STEPS, dataset_name, f"evo_{gen}_{idx}")
@@ -1612,13 +1703,16 @@ def run_evolution(dataset_name, loader, eval_loader, input_dim, num_classes):
         if best_eval is None or elites[0][0] > best_eval[0]:
             best_eval = elites[0]
         log(f"Gen {gen}: best_acc={elites[0][3]['eval_acc']:.4f}, loss={elites[0][3]['eval_loss']:.4f}")
+        save_evo_checkpoint(gen, elites[0][1], elites[0][2], elites[0][3], elites[0][0])
 
         # Refill population
         new_population = [e[1] for e in elites]  # keep elites
         while len(new_population) < EVO_POP:
             parent = random.choice(elites)[1]
             child = AbsoluteHallway(input_dim=input_dim, num_classes=num_classes, ring_len=RING_LEN, slot_dim=8)
-            child.load_state_dict(mutate_state_dict(parent.state_dict(), std=EVO_MUT_STD))
+            child.load_state_dict(
+                mutate_state_dict(parent.state_dict(), std=EVO_MUT_STD, pointer_only=EVO_POINTER_ONLY)
+            )
             new_population.append(child)
         population = new_population
 

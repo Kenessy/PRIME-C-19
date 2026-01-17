@@ -146,6 +146,9 @@ class Settings:
     evo_gens: int
     evo_steps: int
     evo_mut_std: float
+    evo_pointer_only: bool
+    evo_checkpoint_every: int
+    evo_resume: bool
 
 
 def load_settings() -> Settings:
@@ -281,6 +284,9 @@ def load_settings() -> Settings:
     evo_gens = _env_int("TP6_EVO_GENS", 3)
     evo_steps = _env_int("TP6_EVO_STEPS", 100)
     evo_mut_std = _env_float("TP6_EVO_MUT_STD", 0.02)
+    evo_pointer_only = _env_flag("TP6_EVO_POINTER_ONLY", False)
+    evo_checkpoint_every = _env_int("TP6_EVO_CKPT_EVERY", 1)
+    evo_resume = _env_flag("TP6_EVO_RESUME", False)
 
     return Settings(
         root=root,
@@ -392,4 +398,7 @@ def load_settings() -> Settings:
         evo_gens=evo_gens,
         evo_steps=evo_steps,
         evo_mut_std=evo_mut_std,
+        evo_pointer_only=evo_pointer_only,
+        evo_checkpoint_every=evo_checkpoint_every,
+        evo_resume=evo_resume,
     )

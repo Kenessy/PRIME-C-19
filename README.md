@@ -1,4 +1,4 @@
-# PRIME C-19 - Phase-Recurring Infinite Manifold Engine using the Candidate 19 activation function
+# PRIME C-19 - Phase-Recurring Infinite Manifold Engine (Candidate 19 Activation)
 by Daniel Kenessy
 
 [![Status: Research Preview](https://img.shields.io/badge/Status-Research%20Preview-blue.svg)]()
@@ -16,6 +16,24 @@ PRIME C-19 is a reference implementation of a recurrent neural memory architectu
 designed to navigate a continuous 1D circular manifold (ring buffer). It focuses
 on topological and numerical fixes that stabilize gradient descent on closed loops,
 eliminating the boundary teleportation glitch found in traditional pointer networks.
+
+---
+
+## Core Mechanisms
+
+1) Shortest-Arc Interpolation (Topology)
+Delta = ((P_target - P_current + N/2) mod N) - N/2
+This forces error signals to flow through the shortest bridge across the ring.
+
+2) Fractional Gaussian Kernels (Gradients)
+Discrete pointers have zero gradients between steps. We use fractional read/write
+heads (index 10.4) with truncated Gaussian kernels. The pointer path uses FP32
+for stable sub-bin gradients.
+
+3) Mobius Phase Flip (Capacity)
+To maximize logical capacity, the architecture tracks a logical coordinate space
+[0, 2N). Crossing N/2 flips the retrieved vector sign, allowing anti-features to
+share physical memory without interference.
 
 ---
 
@@ -46,31 +64,27 @@ Default rho = 4.0
 
 ---
 
-## The Core Problem: The Rubber Wall
+## Quick Summary
 
-In standard circular memory architectures, training a neural pointer to cross the
-boundary (e.g., bin 2047 -> 0) fails catastrophically.
-- Linear interpolation sees a jump of 2047 units instead of 1 unit.
-- Result: gradients explode, causing the optimizer to freeze the pointer (the statue)
-  or randomize it (the teleport).
+- Pointer moves on a ring with shortest-arc interpolation (no seam teleports).
+- Kernel read/write uses circular Gaussian or Von Mises weights.
+- Stabilizers: inertia, deadzone, phantom hysteresis, velocity governor.
+- Optional auto controls: TP6_THERMO, TP6_PTR_UPDATE_AUTO, TP6_PANIC.
 
-## The Solution: Architecture Overview
+---
 
-PRIME C-19 patches the topology issue using three specific mechanisms:
+## Evolution Mode (optional)
 
-1) Shortest-Arc Interpolation (Topology)
-Delta = ((P_target - P_current + N/2) mod N) - N/2
-This forces error signals to flow through the shortest bridge across the ring.
+Use evolution to explore weight space with short training bursts.
 
-2) Fractional Gaussian Kernels (Gradients)
-Discrete pointers have zero gradients between steps. We use fractional read/write
-heads (index 10.4) with truncated Gaussian kernels. The pointer path uses FP32
-for stable sub-bin gradients.
-
-3) Mobius Phase Flip (Capacity)
-To maximize logical capacity, the architecture tracks a logical coordinate space
-[0, 2N). Crossing N/2 flips the retrieved vector sign, allowing anti-features to
-share physical memory without interference.
+- Enable: TP6_MODE=evolution
+- Population: TP6_EVO_POP (default 6)
+- Generations: TP6_EVO_GENS (set 0 for infinite)
+- Steps per individual: TP6_EVO_STEPS
+- Mutation scale: TP6_EVO_MUT_STD
+- Pointer-only mutations: TP6_EVO_POINTER_ONLY=1
+- Checkpoints: TP6_EVO_CKPT_EVERY (per-gen) and evo_latest.pt
+- Resume: TP6_EVO_RESUME=1 (seed new population from evo_latest.pt)
 
 ---
 
@@ -82,15 +96,6 @@ share physical memory without interference.
 | Topology | Flat Sequence | Flat Sequence | Linear Tape | Circular Manifold |
 | Boundary | N/A | N/A | Hard Boundary | Continuous Loop |
 | Stability | High | High | Low (Unstable) | High (Stabilized) |
-
----
-
-## Quick Summary
-
-- Pointer moves on a ring with shortest-arc interpolation (no seam teleports).
-- Kernel read/write uses circular Gaussian or Von Mises weights.
-- Stabilizers: inertia, deadzone, phantom hysteresis, velocity governor.
-- Optional auto controls: TP6_THERMO, TP6_PTR_UPDATE_AUTO, TP6_PANIC.
 
 ---
 
@@ -122,7 +127,13 @@ See:
 
 ---
 
-## Recent Updates
+## Latest Patches
 
-See CHANGELOG.md for patch notes and timestamps. A/B smoke results are recorded in
-artifacts/ab_runs/proof_ab.csv (short run, not a full benchmark).
+- 2026-01-17: Evolution checkpoints + resume (`TP6_EVO_RESUME`, `evo_latest.pt`).
+- 2026-01-17: Infinite evolution when `TP6_EVO_GENS=0`.
+- 2026-01-17: Heartbeat logging added inside evolution training loop.
+- 2026-01-17: Panic overrides controls only when status is PANIC.
+- 2026-01-17: Activation default set to C-19; settings centralized in `prime_c19/settings.py`.
+
+Full history: CHANGELOG.md
+Smoke results: artifacts/ab_runs/proof_ab.csv
