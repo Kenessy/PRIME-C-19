@@ -123,8 +123,10 @@ research identity of this project and is referenced in the codename.
 Math form (rendered):
 
 <p align="center">
-  <img alt="C19 activation" src="https://latex.codecogs.com/svg.image?\\Large%20C_{19}(x)=\\begin{cases}x-L&x\\ge%20L\\\\x+L&x\\le-L\\\\\\pi\\,(sgn\\cdot%20h+\\rho%20h^2)&\\text{otherwise}\\end{cases}">
-</p>
+
+$$\Large C_{19}(x)=\begin{cases}x-L&x\ge L\\x+L&x\le-L\\\pi\,(sgn\cdot h+\rho h^2)&\text{otherwise}\end{cases}$$
+
+</p>>
 
 Where:
 L = 6*pi, s = x/pi, n = floor(s), t = s - n, h = t(1 - t), sgn = (-1)^n
