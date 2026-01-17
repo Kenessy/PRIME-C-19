@@ -191,17 +191,10 @@ Smoke results: artifacts/ab_runs/proof_ab.csv
 These are ideas we have not implemented yet. They are recorded for prior art
 only and should not be treated as validated results.
 
-- Spinor-lifted hyperbolic bundle: lift the ring into a hyperbolic bulk and
-  represent jumps as isometries. This would be a full redesign, not a patch.
-- Renormalized Mobius-hyperbolic Clifford bundle: seam-free double-cover base
-  plus hyperbolic fiber and structure-preserving updates. High potential but
-  requires a full redesign (not implemented).
-- Spinor-lifted hyperbolic Mobius bundle: smooth double-cover ring + depth axis,
-  with jumps decomposed into tau-step laminar micro-moves. High potential, full
-  redesign (not implemented).
-- Spin-lifted twisted hyperbolic bundle: Mobius holonomy as a Z2 gauge bit,
-  hyperbolic bulk (Lorentz model), and structure-preserving updates (symplectic
-  or rotor). High potential, full redesign (not implemented).
+- Hyperbolic bundle family: seam-free double-cover or holonomy-bit base, a
+  hyperbolic scale axis, structure-preserving/geodesic updates (rotor or
+  symplectic), and laminarized jumps. High potential, full redesign
+  (not implemented).
 - Post-jump momentum damping: apply a short cooldown to pointer velocity or
   jump probability for tau steps after a jump to reduce turbulence. This is a
   small, testable idea we may prototype next.
