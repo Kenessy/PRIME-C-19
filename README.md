@@ -1,39 +1,108 @@
-# PRIME C-19 - Phase-Recurring Infinite Manifold Engine (Candidate 19 Activation)
+# PRIME C-19: Phase-Recurring Infinite Manifold Engine
 by Daniel Kenessy
 
 [![Status: Research Preview](https://img.shields.io/badge/Status-Research%20Preview-blue.svg)]()
 [![Architecture: Recurrent](https://img.shields.io/badge/Arch-Manifold%20RNN-purple.svg)]()
 
-> "Solving the Gradient Explosion on Circular Manifolds."
-
-Status: PRE-ALPHA (research prototype). This is a proof-of-concept published early
+Status: PRE-ALPHA (research prototype). This is a proof of concept published early
 for prior art. It is not production-ready and is not expected to work end-to-end.
 Expect breaking changes, unstable results, and incomplete components.
 
 Last updated: 2026-01-17 (local time)
 
-PRIME C-19 is a reference implementation of a recurrent neural memory architecture
-designed to navigate a continuous 1D circular manifold (ring buffer). It focuses
-on topological and numerical fixes that stabilize gradient descent on closed loops,
-eliminating the boundary teleportation glitch found in traditional pointer networks.
+PRIME C-19 is a recurrent neural memory architecture that navigates a continuous
+1D circular manifold (ring buffer). It focuses on topological and numerical fixes
+that stabilize gradient descent on closed loops and remove seam teleportation.
 
 ---
 
-## Core Mechanisms
+## One-line Pitch
+
+Shortest-arc pointer control + fractional read/write kernels + cadence-aware
+updates to keep memory stable on a ring.
+
+---
+
+## Key Innovations (Current)
 
 1) Shortest-Arc Interpolation (Topology)
 Delta = ((P_target - P_current + N/2) mod N) - N/2
 This forces error signals to flow through the shortest bridge across the ring.
 
 2) Fractional Gaussian Kernels (Gradients)
-Discrete pointers have zero gradients between steps. We use fractional read/write
-heads (index 10.4) with truncated Gaussian kernels. The pointer path uses FP32
-for stable sub-bin gradients.
+Discrete pointers have zero gradients between steps. PRIME C-19 uses fractional
+read/write heads with truncated Gaussian kernels. Pointer math is forced to FP32
+for stable sub-bin gradients even under fp16/amp.
 
 3) Mobius Phase Embedding (Capacity)
-To explore non-orientable behavior without breaking continuity, the architecture
-optionally adds a continuous phase embedding over a logical [0, 2N) coordinate
-space. This is a smooth helix (cos/sin phase), not a hard sign flip at wrap.
+Optional continuous phase embedding over a logical [0, 2N) coordinate space.
+This is a smooth helix (cos/sin phase), not a hard sign flip at wrap.
+
+4) Cadence as a Physical Limit
+Update cadence (PTR_UPDATE_EVERY) is an empirical limiter. Micro assoc_clean
+shows a clear knee at update_every >= 8 (see Evidence below).
+
+---
+
+## Evidence Snapshot (Assoc Clean, Micro)
+
+Task: assoc_clean (len=8, keys=2, pairs=1), soft gate ON, no panic/thermo.
+
+```
+update_every  eval_acc
+1             0.5430
+2             0.5430
+4             0.7070
+8             0.8047
+16            0.8047
+```
+
+Jump-cap alone does not fix "jump every step" failure:
+- update_every=1: cap=0.2 and no-cap both ~0.543 acc.
+
+Details: docs/ASSOC_CLEAN_SWEEP.md
+
+---
+
+## Quick Start (Micro Assoc Clean)
+
+```
+set TP6_SYNTH=1
+set TP6_SYNTH_MODE=assoc_clean
+set TP6_SYNTH_LEN=8
+set TP6_ASSOC_KEYS=2
+set TP6_ASSOC_PAIRS=1
+set TP6_MAX_SAMPLES=512
+set TP6_BATCH_SIZE=32
+set TP6_MAX_STEPS=200
+
+set TP6_PTR_SOFT_GATE=1
+set TP6_PTR_WALK_PROB=0.05
+set TP6_PTR_INERTIA=0.1
+set TP6_PTR_DEADZONE=0
+set TP6_PTR_NO_ROUND=1
+set TP6_SOFT_READOUT=1
+set TP6_LMOVE=0
+
+set TP6_PANIC_ENABLED=0
+set TP6_THERMO_ENABLED=0
+
+python tournament_phase6.py
+```
+
+---
+
+## Architecture Overview
+
+```
+input -> input_proj -> activation -> GRU -> ring state (scatter_add)
+                                   -> head -> logits
+
+pointer control:
+  theta_ptr / theta_gate + jump_score -> jump p -> circular lerp -> ptr_float
+```
+
+Readout is aligned with the pre-update pointer (read and write are synchronized).
 
 ---
 
@@ -47,20 +116,13 @@ research identity of this project and is referenced in the codename.
 
 Math form (rendered):
 
-$$
-L = 6\pi,\quad s = x/\pi,\quad n = \lfloor s \rfloor,\quad t = s-n,\quad h = t(1-t),\quad sgn = (-1)^n
-$$
+<p align="center">
+  <img alt="C19 activation" src="https://latex.codecogs.com/svg.image?\\Large%20C_{19}(x)=\\begin{cases}x-L&x\\ge%20L\\\\x+L&x\\le-L\\\\\\pi\\,(sgn\\cdot%20h+\\rho%20h^2)&\\text{otherwise}\\end{cases}">
+</p>
 
-$$
-C_{19}(x) =
-\begin{cases}
-x - L & x \ge L \\
-x + L & x \le -L \\
-\pi\,(sgn\cdot h + \rho h^2) & \text{otherwise}
-\end{cases}
-$$
-
-Default: rho = 4.0
+Where:
+L = 6*pi, s = x/pi, n = floor(s), t = s - n, h = t(1 - t), sgn = (-1)^n
+Default rho = 4.0
 
 Reference equation (as implemented):
 
@@ -81,45 +143,30 @@ Default rho = 4.0
 
 ---
 
-## Quick Summary
+## Controls (Selected)
 
-- Pointer moves on a ring with shortest-arc interpolation (no seam teleports).
-- Kernel read/write uses circular Gaussian or Von Mises weights.
-- Pointer math is forced to FP32 for sub-bin stability.
-- Stabilizers: inertia, deadzone, phantom hysteresis, velocity governor.
-- Optional auto controls: TP6_THERMO, TP6_PTR_UPDATE_AUTO, TP6_PANIC.
-- Optional pointer controls: TP6_PTR_SOFT_GATE, TP6_PTR_JUMP_CAP, TP6_PTR_JUMP_DISABLED.
+Pointer dynamics:
+- TP6_PTR_UPDATE_EVERY: cadence (key limiter)
+- TP6_PTR_SOFT_GATE: soft gate for pointer updates
+- TP6_PTR_JUMP_CAP: clamp jump probability
+- TP6_PTR_JUMP_DISABLED: disable jump mix (walk only)
+- TP6_PTR_WALK_PROB, TP6_PTR_INERTIA, TP6_PTR_DEADZONE
+
+Automation:
+- TP6_THERMO, TP6_PTR_UPDATE_AUTO, TP6_PANIC
 
 ---
 
 ## Known Issues (Active)
 
-- assoc_clean (no-noise recall): gradients restored after pre-update readout fix, but hard settings (len=32, keys=4, pairs=2) remain unstable. Cadence sweep in progress.
-- seq_mnist eval uses train-subset by default; do not treat as generalization unless you switch to a disjoint split.
+- assoc_clean (no-noise recall): gradients restored after pre-update readout fix,
+  but hard settings (len=32, keys=4, pairs=2) remain unstable. Cadence sweep in progress.
+- seq_mnist eval uses train-subset by default; do not treat as generalization
+  unless you switch to a disjoint split.
 
 ---
 
-## Recent Empirical Findings (assoc_clean)
-
-Small assoc_clean (len=8, keys=2, pairs=1) shows a clear cadence knee:
-
-```
-update_every  eval_acc
-1             0.5430
-2             0.5430
-4             0.7070
-8             0.8047
-16            0.8047
-```
-
-Jump-cap alone does not fix "jump every step" failure:
-- update_every=1: cap=0.2 and no-cap both ~0.543 acc.
-
-Details: docs/ASSOC_CLEAN_SWEEP.md
-
----
-
-## Evolution Mode (optional)
+## Evolution Mode (Optional)
 
 Use evolution to explore weight space with short training bursts.
 
@@ -134,35 +181,24 @@ Use evolution to explore weight space with short training bursts.
 
 ---
 
-## Synthetic Modes (no download)
+## Synthetic Modes (No Download)
 
-Set `TP6_SYNTH=1` to use synthetic data instead of MNIST.
+Set TP6_SYNTH=1 to use synthetic data instead of MNIST.
 
-- `TP6_SYNTH_MODE=markov0`: label is last bit.
-- `TP6_SYNTH_MODE=markov0_flip`: label is inverse of last bit.
-- `TP6_SYNTH_MODE=const0`: label always 0.
-- `TP6_SYNTH_MODE=hand_kv`: load `data/hand_kv.jsonl`.
-- `TP6_SYNTH_MODE=assoc_clean`: no-noise associative recall.
-  - Configure with `TP6_ASSOC_KEYS` and `TP6_ASSOC_PAIRS`.
-
----
-
-## Comparison to Standard Methods
-
-| Feature | Transformers (Attention) | Standard RNNs (LSTM/GRU) | Neural Turing Machines | PRIME C-19 |
-| --- | --- | --- | --- | --- |
-| Context Cost | O(N^2) | O(N) | O(N) | O(1) (Local Kernel) |
-| Topology | Flat Sequence | Flat Sequence | Linear Tape | Circular Manifold |
-| Boundary | N/A | N/A | Hard Boundary | Continuous Loop |
-| Stability | High | High | Low (Unstable) | High (Stabilized) |
+- TP6_SYNTH_MODE=markov0: label is last bit.
+- TP6_SYNTH_MODE=markov0_flip: label is inverse of last bit.
+- TP6_SYNTH_MODE=const0: label always 0.
+- TP6_SYNTH_MODE=hand_kv: load data/hand_kv.jsonl.
+- TP6_SYNTH_MODE=assoc_clean: no-noise associative recall.
+  - Configure with TP6_ASSOC_KEYS and TP6_ASSOC_PAIRS.
 
 ---
 
-## Project Structure (high level)
+## Project Structure (High Level)
 
 - tournament_phase6.py: main training and model code
 - prime_c19/settings.py: env parsing and config mapping
-- artifacts/ab_runs: A/B smoke artifacts and summary JSONs
+- artifacts/ab_runs: A/B smoke artifacts and summary CSVs
 - tools/: GUI and interactive scripts
 - docs/: notes and test summaries
 
@@ -188,15 +224,15 @@ See:
 
 ## Latest Patches
 
-- 2026-01-17: Evolution checkpoints + resume (`TP6_EVO_RESUME`, `evo_latest.pt`).
-- 2026-01-17: Infinite evolution when `TP6_EVO_GENS=0`.
+- 2026-01-17: Evolution checkpoints + resume (TP6_EVO_RESUME, evo_latest.pt).
+- 2026-01-17: Infinite evolution when TP6_EVO_GENS=0.
 - 2026-01-17: Heartbeat logging added inside evolution training loop.
 - 2026-01-17: Panic overrides controls only when status is PANIC.
-- 2026-01-17: Activation default set to C-19; settings centralized in `prime_c19/settings.py`.
+- 2026-01-17: Activation default set to C-19; settings centralized in prime_c19/settings.py.
 - 2026-01-17: Pointer math forced to FP32 (sub-bin stability).
 - 2026-01-17: Satiety freeze masks state writes for inactive samples.
-- 2026-01-17: Optional soft gate for pointer updates (`TP6_PTR_SOFT_GATE=1`).
-- 2026-01-17: Optional jump cap + jump disable (`TP6_PTR_JUMP_CAP`, `TP6_PTR_JUMP_DISABLED`).
+- 2026-01-17: Optional soft gate for pointer updates (TP6_PTR_SOFT_GATE=1).
+- 2026-01-17: Optional jump cap + jump disable (TP6_PTR_JUMP_CAP, TP6_PTR_JUMP_DISABLED).
 
 Full history: CHANGELOG.md
 Smoke results: artifacts/ab_runs/proof_ab.csv
@@ -215,3 +251,4 @@ only and should not be treated as validated results.
 - Post-jump momentum damping: apply a short cooldown to pointer velocity or
   jump probability for tau steps after a jump to reduce turbulence. This is a
   small, testable idea we may prototype next.
+
