@@ -82,6 +82,8 @@ class Settings:
     ptr_gate_mode: str
     ptr_gate_steps: str
     ptr_soft_gate: bool
+    ptr_jump_disabled: bool
+    ptr_jump_cap: float
 
     thermo_enabled: bool
     thermo_every: int
@@ -217,6 +219,8 @@ def load_settings() -> Settings:
     ptr_gate_mode = _env_str("TP6_PTR_GATE_MODE", "none").lower()
     ptr_gate_steps = _env_str("TP6_PTR_GATE_STEPS", "")
     ptr_soft_gate = _env_flag("TP6_PTR_SOFT_GATE", False)
+    ptr_jump_disabled = _env_flag("TP6_PTR_JUMP_DISABLED", False)
+    ptr_jump_cap = _env_float("TP6_PTR_JUMP_CAP", 1.0)
 
     thermo_enabled = _env_flag("TP6_THERMO", False)
     thermo_every = _env_int("TP6_THERMO_EVERY", 20)
@@ -358,6 +362,8 @@ def load_settings() -> Settings:
         ptr_gate_mode=ptr_gate_mode,
         ptr_gate_steps=ptr_gate_steps,
         ptr_soft_gate=ptr_soft_gate,
+        ptr_jump_disabled=ptr_jump_disabled,
+        ptr_jump_cap=ptr_jump_cap,
         thermo_enabled=thermo_enabled,
         thermo_every=thermo_every,
         thermo_target_flip=thermo_target_flip,

@@ -64,6 +64,8 @@ PTR_DEADZONE = CFG.ptr_deadzone  # distance below which pointer resists moving
 PTR_DEADZONE_TAU = CFG.ptr_deadzone_tau
 PTR_WARMUP_STEPS = CFG.ptr_warmup_steps
 PTR_WALK_PROB = CFG.ptr_walk_prob  # 0=stay when not jumping, 1=always walk
+PTR_JUMP_DISABLED = CFG.ptr_jump_disabled  # when true, disable jump mix (walk/stay only)
+PTR_JUMP_CAP = CFG.ptr_jump_cap  # optional cap on jump probability (<=1.0)
 PTR_NO_ROUND = CFG.ptr_no_round
 PTR_PHANTOM = CFG.ptr_phantom
 PTR_PHANTOM_OFF = CFG.ptr_phantom_off
@@ -670,6 +672,10 @@ class AbsoluteHallway(nn.Module):
                 jump_logits = self.jump_score(upd).squeeze(1) + theta_gate
                 nan_guard("jump_logits", jump_logits, t)
                 p = torch.sigmoid(jump_logits)
+                if 0.0 < PTR_JUMP_CAP < 1.0:
+                    p = torch.clamp(p, max=PTR_JUMP_CAP)
+                if PTR_JUMP_DISABLED:
+                    p = torch.zeros_like(p)
                 jump_p = p
                 # straight-through estimator for pointer target (continuous)
                 target_cont = theta_ptr  # already in [0, ring_len)

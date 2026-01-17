@@ -30,10 +30,10 @@ Discrete pointers have zero gradients between steps. We use fractional read/writ
 heads (index 10.4) with truncated Gaussian kernels. The pointer path uses FP32
 for stable sub-bin gradients.
 
-3) Mobius Phase Flip (Capacity)
-To maximize logical capacity, the architecture tracks a logical coordinate space
-[0, 2N). Crossing N/2 flips the retrieved vector sign, allowing anti-features to
-share physical memory without interference.
+3) Mobius Phase Embedding (Capacity)
+To explore non-orientable behavior without breaking continuity, the architecture
+optionally adds a continuous phase embedding over a logical [0, 2N) coordinate
+space. This is a smooth helix (cos/sin phase), not a hard sign flip at wrap.
 
 ---
 
@@ -68,14 +68,37 @@ Default rho = 4.0
 
 - Pointer moves on a ring with shortest-arc interpolation (no seam teleports).
 - Kernel read/write uses circular Gaussian or Von Mises weights.
+- Pointer math is forced to FP32 for sub-bin stability.
 - Stabilizers: inertia, deadzone, phantom hysteresis, velocity governor.
 - Optional auto controls: TP6_THERMO, TP6_PTR_UPDATE_AUTO, TP6_PANIC.
+- Optional pointer controls: TP6_PTR_SOFT_GATE, TP6_PTR_JUMP_CAP, TP6_PTR_JUMP_DISABLED.
 
 ---
 
 ## Known Issues (Active)
 
-- assoc_clean (no-noise recall): gradients restored after pre-update readout fix, but short smoke runs still do not reliably decrease loss (tuning pending).
+- assoc_clean (no-noise recall): gradients restored after pre-update readout fix, but hard settings (len=32, keys=4, pairs=2) remain unstable. Cadence sweep in progress.
+- seq_mnist eval uses train-subset by default; do not treat as generalization unless you switch to a disjoint split.
+
+---
+
+## Recent Empirical Findings (assoc_clean)
+
+Small assoc_clean (len=8, keys=2, pairs=1) shows a clear cadence knee:
+
+```
+update_every  eval_acc
+1             0.5430
+2             0.5430
+4             0.7070
+8             0.8047
+16            0.8047
+```
+
+Jump-cap alone does not fix "jump every step" failure:
+- update_every=1: cap=0.2 and no-cap both ~0.543 acc.
+
+Details: docs/ASSOC_CLEAN_SWEEP.md
 
 ---
 
@@ -153,6 +176,10 @@ See:
 - 2026-01-17: Heartbeat logging added inside evolution training loop.
 - 2026-01-17: Panic overrides controls only when status is PANIC.
 - 2026-01-17: Activation default set to C-19; settings centralized in `prime_c19/settings.py`.
+- 2026-01-17: Pointer math forced to FP32 (sub-bin stability).
+- 2026-01-17: Satiety freeze masks state writes for inactive samples.
+- 2026-01-17: Optional soft gate for pointer updates (`TP6_PTR_SOFT_GATE=1`).
+- 2026-01-17: Optional jump cap + jump disable (`TP6_PTR_JUMP_CAP`, `TP6_PTR_JUMP_DISABLED`).
 
 Full history: CHANGELOG.md
 Smoke results: artifacts/ab_runs/proof_ab.csv

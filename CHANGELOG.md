@@ -23,6 +23,12 @@ All dates are local time (YYYY-MM-DD).
 - Diagnostics: adversarial checks pass for ring-wrap lerp and kernel continuity.
 - Docs: add update notes and patch references.
 - Data: add `artifacts/ab_runs/proof_ab.csv` (short A/B smoke, 60 steps, seed 123) and updated summary JSONs.
+- Fix: pointer math forced to FP32 (sub-bin stability under fp16/amp).
+- Fix: satiety freeze masks state writes for inactive samples.
+- Config: add `TP6_PTR_JUMP_CAP` (clamp jump probability) and `TP6_PTR_JUMP_DISABLED`.
+- Config: add `TP6_PTR_SOFT_GATE` (pointer update gate for smoother control).
+- Experiments: assoc_clean cadence sweep confirms update_every >= 8 yields stable learning on small task.
+- Experiments: jump-cap alone does not fix update_every=1 collapse on small assoc_clean.
 
 ### A/B smoke (60 steps, seed 123)
 - baseline: flip 0.9956 | dwell 1.0005 | acc 0.12695 | loss 2.3017
