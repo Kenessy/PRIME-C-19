@@ -258,6 +258,8 @@ See:
 - 2026-01-17: Satiety freeze masks state writes for inactive samples.
 - 2026-01-17: Optional soft gate for pointer updates (TP6_PTR_SOFT_GATE=1).
 - 2026-01-17: Optional jump cap + jump disable (TP6_PTR_JUMP_CAP, TP6_PTR_JUMP_DISABLED).
+- 2026-01-17: Added small synthetic bench (xor/two_moons/circles/spiral/sine) + results.
+  See docs/bench_small_prime.md.
 
 Full history: CHANGELOG.md
 Smoke results: artifacts/ab_runs/proof_ab.csv
