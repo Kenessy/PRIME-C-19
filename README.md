@@ -205,6 +205,10 @@ See full details: docs/bench_small_prime.md
 </p>
 
 <p align="center">
+  <img alt="Small synthetic bench sine regression" src="https://raw.githubusercontent.com/Kenessy/PRIME-C-19/main/docs/bench_small_prime_sine.svg" width="720">
+</p>
+
+<p align="center">
   <img alt="C19 activation equation" src="docs/c19_equation.svg" width="720">
 </p>
 
