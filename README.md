@@ -25,12 +25,22 @@ updates to keep memory stable on a ring.
 
 ## Hypothesis (Speculative)
 
-We keep a concise, non-verified narrative in `docs/HYPOTHESIS.md`. The core
-theme there is **Mechanics of Thought (Loop Hypothesis)**: capacity is framed
-as time/iteration rather than static storage.
+**Algorithmic Loop Hypothesis (ALH).** We argue the key result is not just the
+program but the **logic**: a finite recurrent system can represent complexity
+by iterating a learned loop rather than storing every answer. In this framing,
+capacity is tied to **time/iteration**, not static memory size.
 
-If you want the short version, read:
-`docs/HYPOTHESIS.md`
+Operationally, PRIME C-19 treats memory as a circular manifold. Stability
+(cadence) becomes a physical limiter: if updates are too fast, the system
+cannot settle; if too slow, it stalls. We treat this as an engineering law,
+not proven physics.
+
+Evidence so far (bounded): the Unified Manifold Governor reaches **1.00 acc**
+on micro `assoc_clean` (len=8, keys=2, pairs=1) at 800 steps across 3 seeds, and
+the cadence knee occurs at `update_every >= 8`. This supports ALH as a working
+hypothesis, not a general proof.
+
+Full narrative (speculative): `docs/HYPOTHESIS.md`
 
 ---
 
