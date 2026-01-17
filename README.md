@@ -23,6 +23,28 @@ updates to keep memory stable on a ring.
 
 ---
 
+## Roadmap Snapshot (Goals + Status)
+
+| Horizon | Goal | Description | Status |
+| --- | --- | --- | --- |
+| Short | Micro assoc_clean stability | Governor + warmup hits 1.00 acc on len=8 task (3 seeds, 800 steps). | Done |
+| Short | Cadence knee measured | update_every sweep shows learning only at >=8. | Done |
+| Mid | Hard assoc_clean | len=32, keys=4, pairs=2 reaches >=0.80 acc across seeds. | In progress |
+| Mid | Seq-MNIST baseline beat | Beat a standard GRU/LSTM baseline on comparable budget. | Planned |
+| Long | Long-range benchmark | LRA/Path-X or Associative Recall at scale. | Planned |
+| Long | External reproduction | Independent run confirms results. | Planned |
+
+Checklist:
+- [x] Seam-safe pointer interpolation (shortest-arc circ_lerp) implemented.
+- [x] FP32 pointer math for fractional kernels (sub-bin gradients).
+- [x] Cadence knee documented (update_every >= 8).
+- [x] Unified Manifold Governor reaches 1.00 acc on micro assoc_clean.
+- [ ] Hard assoc_clean >= 0.80 acc (len=32, keys=4, pairs=2).
+- [ ] Seq-MNIST baseline beat on comparable budget.
+- [ ] External reproduction confirmed.
+
+---
+
 ## Key Innovations (Current)
 
 1) Shortest-Arc Interpolation (Topology)
