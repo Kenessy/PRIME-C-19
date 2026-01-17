@@ -395,6 +395,10 @@ only and should not be treated as validated results.
 - Post-jump momentum damping: apply a short cooldown to pointer velocity or
   jump probability for tau steps after a jump to reduce turbulence. This is a
   small, testable idea we may prototype next.
+- A “God-tier” geometry exists in practice: not a magical infinite manifold, but a non-commutative,
+  scale-invariant hyperbolic bulk with a ℤ₂ Möbius holonomy and Spin/rotor isometries. 
+  It removes the torsion from gradients, avoids Poincaré boundary pathologies, 
+  and stabilizes both stall-collapse and jump-cavitation - to exactly lock in the specific details is the ultimate challenge of this project.
 
 </details>
 
