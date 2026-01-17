@@ -62,6 +62,12 @@ Jump-cap alone does not fix "jump every step" failure:
 
 Details: docs/ASSOC_CLEAN_SWEEP.md
 
+Hard assoc_clean (len=32, keys=4, pairs=2) remains near chance:
+```
+c19  eval_acc 0.5039  eval_loss 0.7004
+silu eval_acc 0.4912  eval_loss 0.7754
+```
+
 ---
 
 ## Quick Start (Micro Assoc Clean)
@@ -251,4 +257,3 @@ only and should not be treated as validated results.
 - Post-jump momentum damping: apply a short cooldown to pointer velocity or
   jump probability for tau steps after a jump to reduce turbulence. This is a
   small, testable idea we may prototype next.
-
