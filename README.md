@@ -122,9 +122,13 @@ research identity of this project and is referenced in the codename.
 
 Math form (rendered):
 
-<p align="center">
-  <img alt="C19 activation" src="[https://latex.codecogs.com/svg.image?%5CLarge%20C](https://latex.codecogs.com/svg.image?%5CLarge%20C)_{19}(x)=%5Cbegin%7Bcases%7Dx-L%26x%5Cge%20L%5C%5Cx+L%26x%5Cle-L%5C%5C%5Cpi%5C,(sgn%5Ccdot%20h+%5Crho%20h%5E2)%26%5Ctext%7Botherwise%7D%5Cend%7Bcases%7D">
-</p>
+\Large C_{19}(x) = 
+\begin{cases} 
+x - L & x \ge L \\ 
+x + L & x \le -L \\ 
+\pi (sgn \cdot h + \rho h^2) & \text{otherwise} 
+\end{cases}
+
 
 Where:
 L = 6*pi, s = x/pi, n = floor(s), t = s - n, h = t(1 - t), sgn = (-1)^n
@@ -167,7 +171,7 @@ See full details: docs/bench_small_prime.md
 </p>
 
 <p align="center">
-  <img alt="Sine regression MSE" src="docs/bench_small_prime_sine.svg" width="420">
+  <img alt="C19 activation" src="[https://latex.codecogs.com/svg.image?%5CLarge%20C](https://latex.codecogs.com/svg.image?%5CLarge%20C)_{19}(x)=%5Cbegin%7Bcases%7Dx-L%26x%5Cge%20L%5C%5Cx+L%26x%5Cle-L%5C%5C%5Cpi%5C,(sgn%5Ccdot%20h+%5Crho%20h%5E2)%26%5Ctext%7Botherwise%7D%5Cend%7Bcases%7D">
 </p>
 
 ---
