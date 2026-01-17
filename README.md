@@ -45,6 +45,23 @@ research identity of this project and is referenced in the codename.
 - Default: TP6_ACT=c19
 - Alternatives: TP6_ACT=identity | tanh | silu | relu
 
+Math form (rendered):
+
+$$
+L = 6\pi,\quad s = x/\pi,\quad n = \lfloor s \rfloor,\quad t = s-n,\quad h = t(1-t),\quad sgn = (-1)^n
+$$
+
+$$
+C_{19}(x) =
+\begin{cases}
+x - L & x \ge L \\
+x + L & x \le -L \\
+\pi\,(sgn\cdot h + \rho h^2) & \text{otherwise}
+\end{cases}
+$$
+
+Default: rho = 4.0
+
 Reference equation (as implemented):
 
 ```
