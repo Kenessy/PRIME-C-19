@@ -149,6 +149,29 @@ Default rho = 4.0
 
 ---
 
+Nickname note: we sometimes refer to a compute unit as a **Digital Diamond (DD)**.
+This is branding only; the code still uses standard “neuron/unit” terminology.
+
+---
+
+## Small Synthetic Bench (C-19 vs ReLU vs SiLU)
+
+Small, clean synthetic suite (XOR, Two Moons, Circles, Spiral, Sine Regression).
+Results show C-19 matching or beating SiLU on the harder geometry/regression tasks
+(spiral + sine), while keeping a lighter compute profile (no exp).
+
+See full details: docs/bench_small_prime.md
+
+<p align="center">
+  <img alt="Small synthetic bench accuracy" src="docs/bench_small_prime_acc.svg" width="720">
+</p>
+
+<p align="center">
+  <img alt="Sine regression MSE" src="docs/bench_small_prime_sine.svg" width="420">
+</p>
+
+---
+
 ## RUISS Score (Activation Bench)
 
 RUISS is a relative activation benchmark that compares the total cost of a

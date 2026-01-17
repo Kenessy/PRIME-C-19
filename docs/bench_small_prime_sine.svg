@@ -1,0 +1,25 @@
+<svg xmlns='http://www.w3.org/2000/svg' width='420' height='240' viewBox='0 0 420 240'>
+<rect width='100%' height='100%' fill='#0f172a'/>
+<text x='20' y='22' fill='#e2e8f0' font-size='14' font-family='Segoe UI, sans-serif'>Sine Regression (MSE, lower is better)</text>
+<line x1='60' y1='30' x2='60' y2='200' stroke='#475569' stroke-width='1' />
+<line x1='60' y1='200' x2='400' y2='200' stroke='#475569' stroke-width='1' />
+<line x1='56' y1='200.0' x2='60' y2='200.0' stroke='#64748b' stroke-width='1' />
+<text x='52' y='204.0' fill='#94a3b8' font-size='10' font-family='Segoe UI, sans-serif' text-anchor='end'>0.00</text>
+<line x1='56' y1='157.5' x2='60' y2='157.5' stroke='#64748b' stroke-width='1' />
+<text x='52' y='161.5' fill='#94a3b8' font-size='10' font-family='Segoe UI, sans-serif' text-anchor='end'>0.01</text>
+<line x1='56' y1='115.0' x2='60' y2='115.0' stroke='#64748b' stroke-width='1' />
+<text x='52' y='119.0' fill='#94a3b8' font-size='10' font-family='Segoe UI, sans-serif' text-anchor='end'>0.02</text>
+<line x1='56' y1='72.5' x2='60' y2='72.5' stroke='#64748b' stroke-width='1' />
+<text x='52' y='76.5' fill='#94a3b8' font-size='10' font-family='Segoe UI, sans-serif' text-anchor='end'>0.03</text>
+<line x1='56' y1='30.0' x2='60' y2='30.0' stroke='#64748b' stroke-width='1' />
+<text x='52' y='34.0' fill='#94a3b8' font-size='10' font-family='Segoe UI, sans-serif' text-anchor='end'>0.04</text>
+<rect x='81.25' y='166.85' width='70.83' height='33.15' fill='#4ade80' />
+<text x='116.67' y='218' fill='#cbd5f5' font-size='11' font-family='Segoe UI, sans-serif' text-anchor='middle'>C19</text>
+<text x='116.67' y='162.85' fill='#e2e8f0' font-size='10' font-family='Segoe UI, sans-serif' text-anchor='middle'>0.0078</text>
+<rect x='194.58' y='44.02' width='70.83' height='155.98' fill='#60a5fa' />
+<text x='230.00' y='218' fill='#cbd5f5' font-size='11' font-family='Segoe UI, sans-serif' text-anchor='middle'>RELU</text>
+<text x='230.00' y='40.02' fill='#e2e8f0' font-size='10' font-family='Segoe UI, sans-serif' text-anchor='middle'>0.0367</text>
+<rect x='307.92' y='113.73' width='70.83' height='86.27' fill='#fbbf24' />
+<text x='343.33' y='218' fill='#cbd5f5' font-size='11' font-family='Segoe UI, sans-serif' text-anchor='middle'>SILU</text>
+<text x='343.33' y='109.73' fill='#e2e8f0' font-size='10' font-family='Segoe UI, sans-serif' text-anchor='middle'>0.0203</text>
+</svg>

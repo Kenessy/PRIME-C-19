@@ -30,6 +30,7 @@ All dates are local time (YYYY-MM-DD).
 - Experiments: assoc_clean cadence sweep confirms update_every >= 8 yields stable learning on small task.
 - Experiments: jump-cap alone does not fix update_every=1 collapse on small assoc_clean.
 - Experiments: small synthetic bench (xor/two_moons/circles/spiral/sine) logged in `docs/bench_small_prime.md`.
+- Docs: add bench charts (accuracy + sine MSE) embedded in README.
 
 ### A/B smoke (60 steps, seed 123)
 - baseline: flip 0.9956 | dwell 1.0005 | acc 0.12695 | loss 2.3017
