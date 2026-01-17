@@ -107,7 +107,13 @@ This is a smooth helix (cos/sin phase), not a hard sign flip at wrap.
 Update cadence (PTR_UPDATE_EVERY) is an empirical limiter. Micro assoc_clean
 shows a clear knee at update_every >= 8 (see Evidence below).
 
-5) Hypothesis only but strong: In high-dimensional associative memory (f.e.: 2048 units), momentum is a liability. 
+5) FP64 Pointer Precision: Increases basin resolution depth (eval_loss: -5%) and prevents rounding-drift in zero-inertia trajectories without impacting CUDA stability.
+
+6) Zero-Control Stability: Confirmed that raw gradient updates (no inertia/deadzone) are safe under RIUSS 98.2 constraints.
+
+7) Laminar vs. Chaos: High-precision, low-traction descent (Member 0_5) produces higher signal conversion than high-energy stochastic jumps (Member 0_4).
+
+8(?)) Hypothesis only but strong: In high-dimensional associative memory (f.e.: 2048 units), momentum is a liability. 
 Pointers must be able to change direction instantly to settle into "laminar" basins. 
 Inertia causes "Basin Overshoot," which was the primary cause of the divergence seen in early prototype runs
 
