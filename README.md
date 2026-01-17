@@ -233,7 +233,8 @@ Details: docs/RUISS.md
 
 ---
 
-## Controls (Selected)
+<details>
+<summary><strong>Controls (Selected)</strong></summary>
 
 Pointer dynamics:
 - TP6_PTR_UPDATE_EVERY: cadence (key limiter)
@@ -244,6 +245,8 @@ Pointer dynamics:
 
 Automation:
 - TP6_THERMO, TP6_PTR_UPDATE_AUTO, TP6_PANIC
+
+</details>
 
 ---
 
@@ -256,7 +259,8 @@ Automation:
 
 ---
 
-## Evolution Mode (Optional)
+<details>
+<summary><strong>Evolution Mode (Optional)</strong></summary>
 
 Use evolution to explore weight space with short training bursts.
 
@@ -269,9 +273,12 @@ Use evolution to explore weight space with short training bursts.
 - Checkpoints: TP6_EVO_CKPT_EVERY (per-gen) and evo_latest.pt
 - Resume: TP6_EVO_RESUME=1 (seed new population from evo_latest.pt)
 
+</details>
+
 ---
 
-## Synthetic Modes (No Download)
+<details>
+<summary><strong>Synthetic Modes (No Download)</strong></summary>
 
 Set TP6_SYNTH=1 to use synthetic data instead of MNIST.
 
@@ -281,6 +288,8 @@ Set TP6_SYNTH=1 to use synthetic data instead of MNIST.
 - TP6_SYNTH_MODE=hand_kv: load data/hand_kv.jsonl.
 - TP6_SYNTH_MODE=assoc_clean: no-noise associative recall.
   - Configure with TP6_ASSOC_KEYS and TP6_ASSOC_PAIRS.
+
+</details>
 
 ---
 
@@ -312,7 +321,8 @@ See:
 
 ---
 
-## Latest Patches
+<details>
+<summary><strong>Latest Patches</strong></summary>
 
 - 2026-01-17: Evolution checkpoints + resume (TP6_EVO_RESUME, evo_latest.pt).
 - 2026-01-17: Infinite evolution when TP6_EVO_GENS=0.
@@ -330,9 +340,12 @@ See:
 Full history: CHANGELOG.md
 Smoke results: artifacts/ab_runs/proof_ab.csv
 
+</details>
+
 ---
 
-## Future Research (Speculative)
+<details>
+<summary><strong>Future Research (Speculative)</strong></summary>
 
 These are ideas we have not implemented yet. They are recorded for prior art
 only and should not be treated as validated results.
@@ -344,4 +357,6 @@ only and should not be treated as validated results.
 - Post-jump momentum damping: apply a short cooldown to pointer velocity or
   jump probability for tau steps after a jump to reduce turbulence. This is a
   small, testable idea we may prototype next.
+
+</details>
 
