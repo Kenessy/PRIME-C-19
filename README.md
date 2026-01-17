@@ -199,6 +199,9 @@ only and should not be treated as validated results.
 - Spinor-lifted hyperbolic Mobius bundle: smooth double-cover ring + depth axis,
   with jumps decomposed into tau-step laminar micro-moves. High potential, full
   redesign (not implemented).
+- Spin-lifted twisted hyperbolic bundle: Mobius holonomy as a Z2 gauge bit,
+  hyperbolic bulk (Lorentz model), and structure-preserving updates (symplectic
+  or rotor). High potential, full redesign (not implemented).
 - Post-jump momentum damping: apply a short cooldown to pointer velocity or
   jump probability for tau steps after a jump to reduce turbulence. This is a
   small, testable idea we may prototype next.
