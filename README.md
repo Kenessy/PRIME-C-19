@@ -33,6 +33,20 @@ program but the **logic**: a finite recurrent system can represent complexity
 by iterating a learned loop rather than storing every answer. In this framing,
 capacity is tied to **time/iteration**, not static memory size.
 
+**Simple example:**
+Fibonacci example is the perfect "Solder" for this logic. If the model learns A + B = C, it doesn't need to store the Fibonacci sequence; it just needs to store the Instruction.
+
+**Realworld example:**
+- Loop A: test if a number is divisible by 2. If yes, go to B.
+- Loop B: divide by 2, go to C.
+- Loop C: check if remainder is zero. If yes, output. If not, go back to B.
+
+Now imagine the system discovers a special number that divides a large class of odd numbers (a placeholder for a learned rule). It can reuse the same loop:
+- divide, check, divide, check, until it resolves the input. In that framing,
+- accuracy depends more on time (iterations) than raw storage.
+
+This is the intuition behind PRIME C-19: encode structure via learned loops, not brute memory.
+
 Operationally, PRIME C-19 treats memory as a circular manifold. Stability
 (cadence) becomes a physical limiter: if updates are too fast, the system
 cannot settle; if too slow, it stalls. We treat this as an engineering law,
