@@ -149,6 +149,25 @@ Default rho = 4.0
 
 ---
 
+## RUISS Score (Activation Bench)
+
+RUISS is a relative activation benchmark that compares the total cost of a
+candidate activation against a ReLU baseline:
+
+```
+ratio = baselineCost / totalCost
+RUISS = 100 * ratio / (1 + ratio)   # higher is better
+```
+
+Current recorded run (RUISS-Brute v1):
+- C-13 (precursor to C-19): RUISS = 59.3395
+- ReLU baseline: RUISS = 50.0
+
+Note: C-19 itself has not been re-scored in RUISS-Brute v1 yet.
+Details: docs/RUISS.md
+
+---
+
 ## Controls (Selected)
 
 Pointer dynamics:
