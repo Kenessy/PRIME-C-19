@@ -25,7 +25,10 @@ updates to keep memory stable on a ring.
 
 ## Hypothesis (Speculative)
 
-**The Principle of Topological Recursion (PTR)** We argue the key result is not just the
+**The Theory of Thought:** 
+**The Principle of Topological Recursion" (PTR)**
+
+We argue the key result is not just the
 program but the **logic**: a finite recurrent system can represent complexity
 by iterating a learned loop rather than storing every answer. In this framing,
 capacity is tied to **time/iteration**, not static memory size.
