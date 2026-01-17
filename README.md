@@ -27,6 +27,23 @@ research identity of this project and is referenced in the codename.
 - Default: TP6_ACT=c19
 - Alternatives: TP6_ACT=identity | tanh | silu | relu
 
+Reference equation (as implemented):
+
+```
+Let L = 6*pi
+Let s = x / pi
+Let n = floor(s)
+Let t = s - n
+Let h = t * (1 - t)
+Let sgn = +1 if n is even else -1
+
+C19(x) = x - L                      if x >=  L
+       = x + L                      if x <= -L
+       = pi * (sgn*h + rho*h*h)     otherwise
+
+Default rho = 4.0
+```
+
 ---
 
 ## The Core Problem: The Rubber Wall
