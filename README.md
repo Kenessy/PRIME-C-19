@@ -23,6 +23,17 @@ updates to keep memory stable on a ring.
 
 ---
 
+## Hypothesis (Speculative)
+
+We keep a concise, non-verified narrative in `docs/HYPOTHESIS.md`. The core
+theme there is **Mechanics of Thought (Loop Hypothesis)**: capacity is framed
+as time/iteration rather than static storage.
+
+If you want the short version, read:
+`docs/HYPOTHESIS.md`
+
+---
+
 ## Roadmap Snapshot (Goals + Status)
 
 | Horizon | Goal | Description | Status |
@@ -190,7 +201,7 @@ Results show C-19 matching or beating SiLU on the harder geometry/regression tas
 See full details: docs/bench_small_prime.md
 
 <p align="center">
-  <img alt="Small synthetic bench accuracy" src="docs/bench_small_prime_acc.svg" width="720">
+  <img alt="Small synthetic bench accuracy" src="https://raw.githubusercontent.com/Kenessy/PRIME-C-19/main/docs/bench_small_prime_acc.svg" width="720">
 </p>
 
 <p align="center">
