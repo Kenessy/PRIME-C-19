@@ -194,7 +194,7 @@ See full details: docs/bench_small_prime.md
 </p>
 
 <p align="center">
-  <img alt="C19 activation" src="[https://latex.codecogs.com/svg.image?%5CLarge%20C](https://latex.codecogs.com/svg.image?%5CLarge%20C)_{19}(x)=%5Cbegin%7Bcases%7Dx-L%26x%5Cge%20L%5C%5Cx+L%26x%5Cle-L%5C%5C%5Cpi%5C,(sgn%5Ccdot%20h+%5Crho%20h%5E2)%26%5Ctext%7Botherwise%7D%5Cend%7Bcases%7D">
+  <img alt="C19 activation equation" src="docs/c19_equation.svg" width="720">
 </p>
 
 ---
@@ -329,3 +329,4 @@ only and should not be treated as validated results.
 - Post-jump momentum damping: apply a short cooldown to pointer velocity or
   jump probability for tau steps after a jump to reduce turbulence. This is a
   small, testable idea we may prototype next.
+

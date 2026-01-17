@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="360" viewBox="0 0 900 360">
+  <rect width="100%" height="100%" fill="white" />
+  <text x="40" y="60" font-family="Times New Roman, serif" font-size="32">C19(x) =</text>
+  <text x="60" y="110" font-family="Times New Roman, serif" font-size="28">{ x - L,   if x &gt;= L</text>
+  <text x="60" y="150" font-family="Times New Roman, serif" font-size="28">  x + L,   if x &lt;= -L</text>
+  <text x="60" y="190" font-family="Times New Roman, serif" font-size="28">  pi * ( sgn * h + rho * h^2 ), otherwise</text>
+  <text x="40" y="250" font-family="Times New Roman, serif" font-size="20">L = 6*pi</text>
+  <text x="40" y="278" font-family="Times New Roman, serif" font-size="20">s = x / pi</text>
+  <text x="40" y="306" font-family="Times New Roman, serif" font-size="20">t = s - floor(s), h = t * (1 - t)</text>
+  <text x="40" y="334" font-family="Times New Roman, serif" font-size="20">sgn = +1 if floor(s) even else -1</text>
+</svg>
