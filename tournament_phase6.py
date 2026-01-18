@@ -159,7 +159,12 @@ AGC_GRAD_HIGH = 5.0
 AGC_SCALE_UP = 1.05
 AGC_SCALE_DOWN = 0.5
 AGC_SCALE_MIN = 0.01
-AGC_SCALE_MAX = 1.0
+AGC_SCALE_MAX = CFG.agc_scale_max
+INERTIA_AUTO = CFG.ptr_inertia_auto
+INERTIA_MIN = CFG.ptr_inertia_min
+INERTIA_MAX = CFG.ptr_inertia_max
+INERTIA_VEL_FULL = CFG.ptr_inertia_vel_full
+INERTIA_EMA = CFG.ptr_inertia_ema
 PTR_UPDATE_GOV_VEL_HIGH = getattr(CFG, "ptr_update_gov_vel_high", 0.5)
 LIVE_TRACE_PATH = CFG.live_trace_path
 RUN_MODE = CFG.run_mode
@@ -416,12 +421,34 @@ def apply_update_agc(model, grad_norm):
     if not math.isfinite(grad_norm):
         return
     scale = float(getattr(model, "update_scale", UPDATE_SCALE))
+    scale_max = float(getattr(model, "agc_scale_max", AGC_SCALE_MAX))
     if grad_norm < AGC_GRAD_LOW:
         scale *= AGC_SCALE_UP
     elif grad_norm > AGC_GRAD_HIGH:
         scale *= AGC_SCALE_DOWN
-    scale = max(AGC_SCALE_MIN, min(AGC_SCALE_MAX, scale))
+    scale = max(AGC_SCALE_MIN, min(scale_max, scale))
     model.update_scale = scale
+
+
+def apply_inertia_auto(model, ptr_velocity, panic_active=False):
+    if not INERTIA_AUTO or panic_active:
+        return
+    if ptr_velocity is None:
+        return
+    if INERTIA_VEL_FULL <= 0:
+        return
+    try:
+        velocity = float(ptr_velocity)
+    except (TypeError, ValueError):
+        return
+    velocity = max(0.0, velocity)
+    ratio = min(1.0, velocity / INERTIA_VEL_FULL)
+    target = INERTIA_MIN + ratio * (INERTIA_MAX - INERTIA_MIN)
+    ema = float(getattr(model, "ptr_inertia_ema", model.ptr_inertia))
+    ema = INERTIA_EMA * ema + (1.0 - INERTIA_EMA) * target
+    ema = max(INERTIA_MIN, min(INERTIA_MAX, ema))
+    model.ptr_inertia_ema = ema
+    model.ptr_inertia = ema
 
 
 class AbsoluteHallway(nn.Module):
@@ -471,10 +498,12 @@ class AbsoluteHallway(nn.Module):
         self.ring_range = ring_len * self.mobius_scale
         # Pointer control (modifiable at runtime)
         self.ptr_inertia = PTR_INERTIA
+        self.ptr_inertia_ema = self.ptr_inertia
         self.ptr_deadzone = PTR_DEADZONE
         self.ptr_deadzone_tau = PTR_DEADZONE_TAU
         self.ptr_walk_prob = PTR_WALK_PROB
         self.update_scale = float(UPDATE_SCALE)
+        self.agc_scale_max = float(AGC_SCALE_MAX)
         self.ptr_vel_enabled = PTR_VEL
         self.ptr_vel_decay = PTR_VEL_DECAY
         self.ptr_vel_cap = PTR_VEL_CAP
@@ -666,6 +695,7 @@ class AbsoluteHallway(nn.Module):
         ptr_vel = torch.zeros(B, device=device, dtype=ptr_dtype)
 
         movement_cost = 0.0
+        raw_movement_cost = 0.0
         # Dynamic pointer trace (loops/motion)
         prev_ptr_int = None
         prev_prev_ptr_int = None
@@ -778,6 +808,7 @@ class AbsoluteHallway(nn.Module):
             jump_p = None
             move_mask = None
             gate = None
+            delta_pre = None
             update_allowed = (t % self.ptr_update_every) == 0
             if self.ptr_gate_mode == "steps" and self.ptr_gate_steps:
                 update_allowed = update_allowed and (t in self.ptr_gate_steps)
@@ -809,6 +840,10 @@ class AbsoluteHallway(nn.Module):
                 non_jump_ptr = self.circ_lerp(stay_ptr, walk_ptr, walk_prob, ring_range)
                 # soft mix keeps gradients flowing through p and target_ste
                 ptr_float = self.circ_lerp(non_jump_ptr, target_ste, p, ring_range)
+                # Raw (pre-inertia) velocity for adaptive inertia control.
+                ptr_float_pre = torch.where(active_mask, ptr_float, prev_ptr)
+                delta_pre = self.wrap_delta(prev_ptr, ptr_float_pre, ring_range)
+                raw_movement_cost = raw_movement_cost + delta_pre.abs().mean()
                 # optional inertia (stay-bias)
                 inertia = min(max(self.ptr_inertia, 0.0), 0.99)
                 if inertia > 0.0:
@@ -887,6 +922,8 @@ class AbsoluteHallway(nn.Module):
                     stats["ptr_vel_abs_mean"] = float(ptr_vel.abs().mean().item())
                     stats["ptr_vel_abs_max"] = float(ptr_vel.abs().max().item())
                     stats["ptr_vel_std"] = float(ptr_vel.std(unbiased=False).item())
+                if delta_pre is not None:
+                    stats["ptr_delta_raw_mean"] = float(delta_pre.abs().mean().item())
                 stats["ptr_update_every"] = int(self.ptr_update_every)
                 stats["ptr_soft_gate"] = int(self.ptr_soft_gate)
                 stats["ptr_vel_enabled"] = int(self.ptr_vel_enabled)
@@ -1013,6 +1050,8 @@ class AbsoluteHallway(nn.Module):
         steps_used = max(1, t + 1)
         move_penalty = movement_cost / steps_used
         self.ptr_delta_abs_mean = float(move_penalty)
+        raw_move_penalty = raw_movement_cost / steps_used
+        self.ptr_delta_raw_mean = float(raw_move_penalty)
         return logits, move_penalty
 
 
@@ -1493,6 +1532,14 @@ def train_wallclock(model, loader, dataset_name, model_name, num_classes, wall_c
                 scaler.load_state_dict(ckpt["scaler"])
         step = int(ckpt.get("step", 0))
         losses = list(ckpt.get("losses", []))
+        if "update_scale" in ckpt:
+            model.update_scale = float(ckpt["update_scale"])
+        if "ptr_inertia" in ckpt:
+            model.ptr_inertia = float(ckpt["ptr_inertia"])
+        if "ptr_inertia_ema" in ckpt:
+            model.ptr_inertia_ema = float(ckpt["ptr_inertia_ema"])
+        if "agc_scale_max" in ckpt:
+            model.agc_scale_max = float(ckpt["agc_scale_max"])
         log(f"Resumed from checkpoint: {CHECKPOINT_PATH} (step={step})")
     # cycle loader until wall clock
     stop_early = False
@@ -1506,80 +1553,79 @@ def train_wallclock(model, loader, dataset_name, model_name, num_classes, wall_c
                 inputs = inputs.to(DTYPE)
             targets = targets.to(DEVICE, non_blocking=True)
 
-            optimizer.zero_grad(set_to_none=True)
-            with amp_autocast():
-                outputs, move_pen = model(inputs)
-                loss = criterion(outputs, targets) + LAMBDA_MOVE * move_pen
-            scaler.scale(loss).backward()
-            did_unscale = False
-            if GRAD_CLIP > 0.0:
-                if USE_AMP:
-                    scaler.unscale_(optimizer)
-                    did_unscale = True
-                torch.nn.utils.clip_grad_norm_(model.parameters(), GRAD_CLIP)
-            if (cadence_gov is not None or AGC_ENABLED) and USE_AMP and scaler.is_enabled() and not did_unscale:
-                scaler.unscale_(optimizer)
-                did_unscale = True
-            if hasattr(model, "theta_ptr_reduced"):
-                with torch.no_grad():
-                    grad = model.theta_ptr_reduced.grad
-                    grad_norm = float(grad.norm().item()) if grad is not None else 0.0
-            apply_update_agc(model, grad_norm if hasattr(model, "theta_ptr_reduced") else None)
-            scaler.step(optimizer)
-            scaler.update()
+        optimizer.zero_grad(set_to_none=True)
+        with amp_autocast():
+            outputs, move_pen = model(inputs)
+            loss = criterion(outputs, targets) + LAMBDA_MOVE * move_pen
+        scaler.scale(loss).backward()
+        if USE_AMP and scaler.is_enabled():
+            scaler.unscale_(optimizer)
+        if hasattr(model, "theta_ptr_reduced"):
+            with torch.no_grad():
+                grad = model.theta_ptr_reduced.grad
+                grad_norm = float(grad.norm().item()) if grad is not None else 0.0
+        if GRAD_CLIP > 0.0:
+            torch.nn.utils.clip_grad_norm_(model.parameters(), GRAD_CLIP)
+        apply_update_agc(model, grad_norm if hasattr(model, "theta_ptr_reduced") else None)
+        scaler.step(optimizer)
+        scaler.update()
 
-            # Force small kernels to complete and keep the watchdog happy; clear cache frequently.
-            if DEVICE == "cuda":
-                torch.cuda.synchronize()
-                if step % 10 == 0:
-                    torch.cuda.empty_cache()
+        # Force small kernels to complete and keep the watchdog happy; clear cache frequently.
+        if DEVICE == "cuda":
+            torch.cuda.synchronize()
+            if step % 10 == 0:
+                torch.cuda.empty_cache()
 
-            losses.append(loss.item())
-            if LOSS_KEEP > 0 and len(losses) > LOSS_KEEP:
-                losses = losses[-LOSS_KEEP:]
-            if THERMO_ENABLED and hasattr(model, "ptr_flip_rate") and step % max(1, THERMO_EVERY) == 0:
-                flip_ema = apply_thermostat(model, float(model.ptr_flip_rate), flip_ema)
-            if panic_reflex is not None:
-                ctrl = panic_reflex.update(float(loss))
-                panic_status = ctrl["status"]
-                # Only override controls when actually panicking; otherwise allow
-                # thermostat/manual settings to remain in effect.
-                if panic_status == "PANIC":
-                    model.ptr_inertia = ctrl["inertia"]
-                    model.ptr_walk_prob = ctrl["walk_prob"]
-            if cadence_gov is not None:
-                flip_rate = float(model.ptr_flip_rate) if hasattr(model, "ptr_flip_rate") else 0.0
-                ptr_velocity = getattr(model, "ptr_delta_abs_mean", None)
-                model.ptr_update_every = cadence_gov.update(loss.item(), grad_norm, flip_rate, ptr_velocity)
-            if hasattr(model, "pointer_hist"):
-                if pointer_hist_sum is None:
-                    pointer_hist_sum = model.pointer_hist.clone()
-                else:
-                    pointer_hist_sum += model.pointer_hist
-            if hasattr(model, "satiety_exits"):
-                satiety_exits += model.satiety_exits
-            if hasattr(model, "ptr_flip_rate"):
-                ptr_flip_sum += float(model.ptr_flip_rate)
-                ptr_steps += 1
-            if hasattr(model, "ptr_mean_dwell"):
-                ptr_mean_dwell_sum += float(model.ptr_mean_dwell)
-            if hasattr(model, "ptr_delta_abs_mean"):
-                ptr_delta_abs_sum += float(model.ptr_delta_abs_mean)
-            if hasattr(model, "ptr_max_dwell"):
-                ptr_max_dwell = max(ptr_max_dwell, int(model.ptr_max_dwell))
-            now = time.time()
-            heartbeat_due = (step % HEARTBEAT_STEPS == 0) or (
-                HEARTBEAT_SECS > 0.0 and (now - last_heartbeat) >= HEARTBEAT_SECS
-            )
-            if heartbeat_due and hasattr(model, "theta_ptr_reduced"):
-                log(f"{dataset_name} | {model_name} | grad_norm(theta_ptr)={grad_norm:.4e}")
+        losses.append(loss.item())
+        if LOSS_KEEP > 0 and len(losses) > LOSS_KEEP:
+            losses = losses[-LOSS_KEEP:]
+        if THERMO_ENABLED and hasattr(model, "ptr_flip_rate") and step % max(1, THERMO_EVERY) == 0:
+            flip_ema = apply_thermostat(model, float(model.ptr_flip_rate), flip_ema)
+        if panic_reflex is not None:
+            ctrl = panic_reflex.update(float(loss))
+            panic_status = ctrl["status"]
+            # Only override controls when actually panicking; otherwise allow
+            # thermostat/manual settings to remain in effect.
+            if panic_status == "PANIC":
+                model.ptr_inertia = ctrl["inertia"]
+                model.ptr_walk_prob = ctrl["walk_prob"]
+        ptr_velocity_raw = getattr(model, "ptr_delta_raw_mean", None)
+        apply_inertia_auto(model, ptr_velocity_raw, panic_status == "PANIC")
+        if cadence_gov is not None:
+            flip_rate = float(model.ptr_flip_rate) if hasattr(model, "ptr_flip_rate") else 0.0
+            ptr_velocity = getattr(model, "ptr_delta_abs_mean", None)
+            model.ptr_update_every = cadence_gov.update(loss.item(), grad_norm, flip_rate, ptr_velocity)
+        if hasattr(model, "pointer_hist"):
+            if pointer_hist_sum is None:
+                pointer_hist_sum = model.pointer_hist.clone()
+            else:
+                pointer_hist_sum += model.pointer_hist
+        if hasattr(model, "satiety_exits"):
+            satiety_exits += model.satiety_exits
+        if hasattr(model, "ptr_flip_rate"):
+            ptr_flip_sum += float(model.ptr_flip_rate)
+            ptr_steps += 1
+        if hasattr(model, "ptr_mean_dwell"):
+            ptr_mean_dwell_sum += float(model.ptr_mean_dwell)
+        if hasattr(model, "ptr_delta_abs_mean"):
+            ptr_delta_abs_sum += float(model.ptr_delta_abs_mean)
+        if hasattr(model, "ptr_max_dwell"):
+            ptr_max_dwell = max(ptr_max_dwell, int(model.ptr_max_dwell))
+        now = time.time()
+        heartbeat_due = (step % HEARTBEAT_STEPS == 0) or (
+            HEARTBEAT_SECS > 0.0 and (now - last_heartbeat) >= HEARTBEAT_SECS
+        )
+        if heartbeat_due and hasattr(model, "theta_ptr_reduced"):
+            log(f"{dataset_name} | {model_name} | grad_norm(theta_ptr)={grad_norm:.4e}")
 
             if heartbeat_due:
                 last_heartbeat = now
                 elapsed = now - start
+                raw_delta = getattr(model, "ptr_delta_raw_mean", None)
+                raw_delta_text = f", raw_delta={float(raw_delta):.3f}" if raw_delta is not None else ""
                 log(
                     f"{dataset_name} | {model_name} | step {step:04d} | loss {loss.item():.4f} | "
-                    f"t={elapsed:.1f}s | ctrl(inertia={model.ptr_inertia:.2f}, deadzone={model.ptr_deadzone:.2f}, walk={model.ptr_walk_prob:.2f}, cadence={model.ptr_update_every}, scale={getattr(model, 'update_scale', UPDATE_SCALE):.3f})"
+                    f"t={elapsed:.1f}s | ctrl(inertia={model.ptr_inertia:.2f}, deadzone={model.ptr_deadzone:.2f}, walk={model.ptr_walk_prob:.2f}, cadence={model.ptr_update_every}, scale={getattr(model, 'update_scale', UPDATE_SCALE):.3f}{raw_delta_text})"
                     + (f" | panic={panic_status}" if panic_reflex is not None else "")
                 )
                 live_due = LIVE_TRACE_EVERY > 0 and (step % LIVE_TRACE_EVERY == 0)
@@ -1600,6 +1646,7 @@ def train_wallclock(model, loader, dataset_name, model_name, num_classes, wall_c
                         trace["ptr_max_dwell"] = model.ptr_max_dwell
                         trace["ptr_mean_dwell"] = model.ptr_mean_dwell
                         trace["ptr_delta_abs_mean"] = getattr(model, "ptr_delta_abs_mean", None)
+                        trace["ptr_delta_raw_mean"] = getattr(model, "ptr_delta_raw_mean", None)
                         trace["ptr_inertia"] = model.ptr_inertia
                         trace["ptr_deadzone"] = model.ptr_deadzone
                         trace["ptr_walk_prob"] = model.ptr_walk_prob
@@ -1648,6 +1695,10 @@ def train_wallclock(model, loader, dataset_name, model_name, num_classes, wall_c
                         "scaler": scaler.state_dict() if USE_AMP else None,
                         "step": step,
                         "losses": losses,
+                        "update_scale": getattr(model, "update_scale", UPDATE_SCALE),
+                        "ptr_inertia": getattr(model, "ptr_inertia", PTR_INERTIA),
+                        "ptr_inertia_ema": getattr(model, "ptr_inertia_ema", getattr(model, "ptr_inertia", PTR_INERTIA)),
+                        "agc_scale_max": getattr(model, "agc_scale_max", AGC_SCALE_MAX),
                     },
                     CHECKPOINT_PATH,
                 )
@@ -1672,6 +1723,7 @@ def train_wallclock(model, loader, dataset_name, model_name, num_classes, wall_c
         "ptr_max_dwell": ptr_max_dwell,
         "ptr_mean_dwell": ptr_mean_dwell,
         "ptr_delta_abs_mean": ptr_delta_abs_mean,
+        "ptr_delta_raw_mean": getattr(model, "ptr_delta_raw_mean", None),
         "state_loop_entropy": getattr(model, "state_loop_entropy", None),
         "state_loop_flip_rate": getattr(model, "state_loop_flip_rate", None),
         "state_loop_abab_rate": getattr(model, "state_loop_abab_rate", None),
@@ -1819,20 +1871,15 @@ def train_steps(model, loader, steps, dataset_name, model_name):
             outputs, move_pen = model(inputs)
             loss = criterion(outputs, targets) + LAMBDA_MOVE * move_pen
         scaler.scale(loss).backward()
-        did_unscale = False
-        if GRAD_CLIP > 0.0:
-            if USE_AMP:
-                scaler.unscale_(optimizer)
-                did_unscale = True
-            torch.nn.utils.clip_grad_norm_(model.parameters(), GRAD_CLIP)
-        if (cadence_gov is not None or AGC_ENABLED) and USE_AMP and scaler.is_enabled() and not did_unscale:
+        if USE_AMP and scaler.is_enabled():
             scaler.unscale_(optimizer)
-            did_unscale = True
         grad_norm_step = 0.0
         if hasattr(model, "theta_ptr_reduced"):
             with torch.no_grad():
                 grad = model.theta_ptr_reduced.grad
                 grad_norm_step = float(grad.norm().item()) if grad is not None else 0.0
+        if GRAD_CLIP > 0.0:
+            torch.nn.utils.clip_grad_norm_(model.parameters(), GRAD_CLIP)
         apply_update_agc(model, grad_norm_step if hasattr(model, "theta_ptr_reduced") else None)
         scaler.step(optimizer)
         scaler.update()
@@ -1861,6 +1908,8 @@ def train_steps(model, loader, steps, dataset_name, model_name):
             if panic_status == "PANIC":
                 model.ptr_inertia = ctrl["inertia"]
                 model.ptr_walk_prob = ctrl["walk_prob"]
+        ptr_velocity_raw = getattr(model, "ptr_delta_raw_mean", None)
+        apply_inertia_auto(model, ptr_velocity_raw, panic_status == "PANIC")
         if cadence_gov is not None:
             flip_rate = float(model.ptr_flip_rate) if hasattr(model, "ptr_flip_rate") else 0.0
             ptr_velocity = getattr(model, "ptr_delta_abs_mean", None)
@@ -1876,9 +1925,11 @@ def train_steps(model, loader, steps, dataset_name, model_name):
         if heartbeat_due:
             last_heartbeat = now
             elapsed = now - start
+            raw_delta = getattr(model, "ptr_delta_raw_mean", None)
+            raw_delta_text = f", raw_delta={float(raw_delta):.3f}" if raw_delta is not None else ""
             log(
                 f"{dataset_name} | {model_name} | step {step:04d}/{steps:04d} | loss {loss.item():.4f} | "
-                f"t={elapsed:.1f}s | ctrl(inertia={model.ptr_inertia:.2f}, deadzone={model.ptr_deadzone:.2f}, walk={model.ptr_walk_prob:.2f}, cadence={model.ptr_update_every}, scale={getattr(model, 'update_scale', UPDATE_SCALE):.3f})"
+                f"t={elapsed:.1f}s | ctrl(inertia={model.ptr_inertia:.2f}, deadzone={model.ptr_deadzone:.2f}, walk={model.ptr_walk_prob:.2f}, cadence={model.ptr_update_every}, scale={getattr(model, 'update_scale', UPDATE_SCALE):.3f}{raw_delta_text})"
                 + (f" | panic={panic_status}" if panic_reflex is not None else "")
             )
             if DEBUG_STATS and getattr(model, "debug_stats", None):
@@ -1915,6 +1966,7 @@ def train_steps(model, loader, steps, dataset_name, model_name):
                     "ptr_mean_dwell": getattr(model, "ptr_mean_dwell", None),
                     "ptr_max_dwell": getattr(model, "ptr_max_dwell", None),
                     "ptr_delta_abs_mean": getattr(model, "ptr_delta_abs_mean", None),
+                    "ptr_delta_raw_mean": getattr(model, "ptr_delta_raw_mean", None),
                     "update_scale": getattr(model, "update_scale", UPDATE_SCALE),
                     "pointer_entropy": pointer_entropy,
                     "pointer_total": pointer_total,
@@ -1955,6 +2007,10 @@ def train_steps(model, loader, steps, dataset_name, model_name):
                     "scaler": scaler.state_dict() if USE_AMP else None,
                     "step": step,
                     "losses": losses,
+                    "update_scale": getattr(model, "update_scale", UPDATE_SCALE),
+                    "ptr_inertia": getattr(model, "ptr_inertia", PTR_INERTIA),
+                    "ptr_inertia_ema": getattr(model, "ptr_inertia_ema", getattr(model, "ptr_inertia", PTR_INERTIA)),
+                    "agc_scale_max": getattr(model, "agc_scale_max", AGC_SCALE_MAX),
                 },
                 ckpt_path,
             )
@@ -1972,6 +2028,7 @@ def train_steps(model, loader, steps, dataset_name, model_name):
         "ptr_mean_dwell": ptr_mean_dwell,
         "ptr_max_dwell": ptr_max_dwell,
         "ptr_delta_abs_mean": ptr_delta_abs_mean,
+        "ptr_delta_raw_mean": getattr(model, "ptr_delta_raw_mean", None),
     }
 
 

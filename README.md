@@ -100,6 +100,7 @@ Phase 1 - Prove it works (current)
 - Micro assoc_clean stability at 800 steps. (Done)
 - Seq-MNIST learning signal on CPU subset (loss < ln(10) with soft readout + no-round). (Done)
 - Autonomous control loop integrated: AGC (dynamic update_scale) + velocity-aware cadence gating. (Done)
+- Adaptive inertia + AGC scale cap + pre-clip AGC + raw pointer velocity logging integrated. (Done)
 - Hard assoc_clean >= 0.80 acc (len=32, keys=4, pairs=2). (In progress)
 - Autonomous seq-MNIST run with self-regulation (no manual scale/cadence). (In progress)
 
@@ -117,6 +118,8 @@ Phase 1 checklist:
 - [x] Unified Manifold Governor reaches 1.00 acc on micro assoc_clean.
 - [x] Seq-MNIST learning signal on CPU subset (loss < ln(10), eval_acc > 0.12).
 - [x] AGC (dynamic update_scale) + velocity-aware cadence gating integrated.
+- [x] Checkpoint resume restores update_scale / inertia / AGC cap.
+- [ ] Adaptive inertia + AGC scale cap validated on seq-MNIST (no manual caps).
 - [ ] Hard assoc_clean >= 0.80 acc (len=32, keys=4, pairs=2).
 - [ ] Autonomous seq-MNIST run shows stable improvement without manual scale/cadence.
 
@@ -166,6 +169,8 @@ Inertia causes "Basin Overshoot," which was the primary cause of the divergence 
 9) Automatic Gain Control (AGC): update_scale is now dynamic and self-regulated to stay in a safe grad band.
 
 10) Velocity-aware cadence gating: pointer speed forces higher sampling (lower cadence) to prevent aliasing on jumps.
+
+11) Adaptive inertia (velocity-based, EMA-smoothed) + raw pointer delta logging for control diagnostics.
 
 ---
 
@@ -422,6 +427,7 @@ See:
 <details>
 <summary><strong>Latest Patches</strong></summary>
 
+- 2026-01-18: AGC scale cap + pre-clip AGC grad + adaptive inertia; raw pointer velocity logged; checkpoints persist AGC/inertia.
 - 2026-01-18: Config wiring + stability fixes (TP6_PTR_DTYPE, TP6_SLOT_DIM, synth_len/shuffle, thermo/panic aliases, cadence_gov crash).
 - 2026-01-18: Autonomous control loop added (AGC + velocity-aware cadence gating); update_scale now dynamic.
 - 2026-01-18: Small bench script now accepts pointer/governor overrides (tools/bench_small_prime.py).

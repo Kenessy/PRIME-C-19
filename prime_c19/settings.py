@@ -57,6 +57,11 @@ class Settings:
     ptr_edge_eps: float
     lambda_move: float
     ptr_inertia: float
+    ptr_inertia_auto: bool
+    ptr_inertia_min: float
+    ptr_inertia_max: float
+    ptr_inertia_vel_full: float
+    ptr_inertia_ema: float
     ptr_deadzone: float
     ptr_deadzone_tau: float
     ptr_warmup_steps: int
@@ -139,6 +144,7 @@ class Settings:
     state_clip: float
     state_decay: float
     update_scale: float
+    agc_scale_max: float
     live_trace_path: str
     run_mode: str
 
@@ -206,6 +212,11 @@ def load_settings() -> Settings:
     ptr_edge_eps = _env_float("TP6_PTR_EDGE_EPS", 0.0)
     lambda_move = _env_float("TP6_LMOVE", 1e-3)
     ptr_inertia = _env_float("TP6_PTR_INERTIA", 0.0)
+    ptr_inertia_auto = _env_flag("TP6_PTR_INERTIA_AUTO", False)
+    ptr_inertia_min = _env_float("TP6_PTR_INERTIA_MIN", 0.5)
+    ptr_inertia_max = _env_float("TP6_PTR_INERTIA_MAX", 0.9)
+    ptr_inertia_vel_full = _env_float("TP6_PTR_INERTIA_VEL_FULL", 0.5)
+    ptr_inertia_ema = _env_float("TP6_PTR_INERTIA_EMA", 0.9)
     ptr_deadzone = _env_float("TP6_PTR_DEADZONE", 0.0)
     ptr_deadzone_tau = _env_float("TP6_PTR_DEADZONE_TAU", 1e-3)
     ptr_warmup_steps = _env_int("TP6_PTR_WARMUP_STEPS", 0)
@@ -305,6 +316,7 @@ def load_settings() -> Settings:
     state_clip = _env_float("TP6_STATE_CLIP", 0.0)
     state_decay = _env_float("TP6_STATE_DECAY", 1.0)
     update_scale = _env_float("TP6_UPDATE_SCALE", 1.0)
+    agc_scale_max = _env_float("TP6_SCALE_MAX", 1.0)
     live_trace_path = _env_str("VAR_LIVE_TRACE_PATH", os.path.join(root, "traces", "current", "live_trace.json"))
     run_mode = _env_str("TP6_MODE", "train")
 
@@ -367,6 +379,11 @@ def load_settings() -> Settings:
         ptr_edge_eps=ptr_edge_eps,
         lambda_move=lambda_move,
         ptr_inertia=ptr_inertia,
+        ptr_inertia_auto=ptr_inertia_auto,
+        ptr_inertia_min=ptr_inertia_min,
+        ptr_inertia_max=ptr_inertia_max,
+        ptr_inertia_vel_full=ptr_inertia_vel_full,
+        ptr_inertia_ema=ptr_inertia_ema,
         ptr_deadzone=ptr_deadzone,
         ptr_deadzone_tau=ptr_deadzone_tau,
         ptr_warmup_steps=ptr_warmup_steps,
@@ -443,6 +460,7 @@ def load_settings() -> Settings:
         state_clip=state_clip,
         state_decay=state_decay,
         update_scale=update_scale,
+        agc_scale_max=agc_scale_max,
         live_trace_path=live_trace_path,
         run_mode=run_mode,
         checkpoint_path=checkpoint_path,

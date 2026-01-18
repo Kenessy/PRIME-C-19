@@ -3,6 +3,11 @@
 All dates are local time (YYYY-MM-DD).
 
 ## 2026-01-18
+- Control: AGC now honors a scale cap (`TP6_SCALE_MAX`) and persists it in checkpoints.
+- Control: AGC uses pre-clip pointer grad norm (brake visibility under clipping).
+- Control: adaptive inertia added (`TP6_PTR_INERTIA_AUTO` + min/max/vel/EMA).
+- Logging: pointer raw delta (`ptr_delta_raw_mean`) added to runtime logs and traces.
+- Checkpoint: resume now restores update_scale and adaptive inertia state.
 - Control: update_scale is now dynamic (AGC loop) to prevent runaway gradients.
 - Control: cadence governor now uses pointer velocity (downshift on high motion).
 - Control: AGC unscales grads when AMP is enabled to avoid false spikes.

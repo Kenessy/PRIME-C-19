@@ -65,6 +65,11 @@ and `prime_c19/settings.py`. Defaults are from code; scripts may override them.
 | Env var | Default | Type | Purpose |
 | --- | --- | --- | --- |
 | TP6_PTR_INERTIA | 0.0 | float | Stay bias (0 = none). |
+| TP6_PTR_INERTIA_AUTO | 0 | flag | Enable adaptive inertia based on pointer velocity. |
+| TP6_PTR_INERTIA_MIN | 0.5 | float | Minimum adaptive inertia. |
+| TP6_PTR_INERTIA_MAX | 0.9 | float | Maximum adaptive inertia. |
+| TP6_PTR_INERTIA_VEL_FULL | 0.5 | float | Velocity at which adaptive inertia reaches max. |
+| TP6_PTR_INERTIA_EMA | 0.9 | float | EMA factor for adaptive inertia. |
 | TP6_PTR_DEADZONE | 0.0 | float | Distance below which movement is resisted. |
 | TP6_PTR_DEADZONE_TAU | 1e-3 | float | Soft mask temperature for deadzone. |
 | TP6_PTR_WARMUP_STEPS | 0 | int | Warmup steps with pointer locked. |
@@ -175,6 +180,7 @@ and `prime_c19/settings.py`. Defaults are from code; scripts may override them.
 | TP6_STATE_CLIP | 0.0 | float | Clamp state values after writes. |
 | TP6_STATE_DECAY | 1.0 | float | State decay per step. |
 | TP6_UPDATE_SCALE | 1.0 | float | Write amplitude scale (verticality). |
+| TP6_SCALE_MAX | 1.0 | float | AGC max for update_scale. |
 
 ## Checkpoint / resume
 
