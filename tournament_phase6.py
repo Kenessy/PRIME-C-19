@@ -153,6 +153,14 @@ GRAD_CLIP = CFG.grad_clip
 STATE_CLIP = CFG.state_clip
 STATE_DECAY = CFG.state_decay
 UPDATE_SCALE = CFG.update_scale
+AGC_ENABLED = True
+AGC_GRAD_LOW = 1.0
+AGC_GRAD_HIGH = 5.0
+AGC_SCALE_UP = 1.05
+AGC_SCALE_DOWN = 0.5
+AGC_SCALE_MIN = 0.01
+AGC_SCALE_MAX = 1.0
+PTR_UPDATE_GOV_VEL_HIGH = getattr(CFG, "ptr_update_gov_vel_high", 0.5)
 LIVE_TRACE_PATH = CFG.live_trace_path
 RUN_MODE = CFG.run_mode
 # Checkpoint / resume controls
@@ -325,6 +333,7 @@ class CadenceGovernor:
         loss_spike: float,
         step_up: float,
         step_down: float,
+        vel_high: float = PTR_UPDATE_GOV_VEL_HIGH,
     ):
         self.tau = float(start_tau)
         self.warmup_steps = max(0, int(warmup_steps))
@@ -338,15 +347,28 @@ class CadenceGovernor:
         self.loss_spike = float(loss_spike)
         self.step_up = float(step_up)
         self.step_down = float(step_down)
+        self.vel_high = float(vel_high)
         self.step_count = 0
         self.grad_ema = None
         self.flip_ema = None
+        self.vel_ema = None
         self.prev_loss = None
 
-    def update(self, loss_value: float, grad_norm: float, flip_rate: float) -> int:
+    def update(self, loss_value: float, grad_norm: float, flip_rate: float, ptr_velocity=None) -> int:
         self.step_count += 1
         if self.step_count <= self.warmup_steps:
             return int(round(self.tau))
+
+        if ptr_velocity is not None:
+            if self.vel_ema is None:
+                self.vel_ema = float(ptr_velocity)
+            else:
+                self.vel_ema = self.ema * self.vel_ema + (1.0 - self.ema) * float(ptr_velocity)
+            # High pointer velocity requires higher sampling (lower cadence).
+            if self.vel_ema > self.vel_high:
+                self.tau = float(self.min_tau)
+                self.prev_loss = loss_value
+                return int(round(self.tau))
 
         if grad_norm > self.grad_high:
             self.tau = float(self.max_tau)
@@ -386,6 +408,20 @@ def compute_slope(losses: List[float]) -> float:
     y = np.array(losses, dtype=np.float64)
     a, _ = np.polyfit(x, y, 1)
     return float(a)
+
+
+def apply_update_agc(model, grad_norm):
+    if not AGC_ENABLED or grad_norm is None:
+        return
+    if not math.isfinite(grad_norm):
+        return
+    scale = float(getattr(model, "update_scale", UPDATE_SCALE))
+    if grad_norm < AGC_GRAD_LOW:
+        scale *= AGC_SCALE_UP
+    elif grad_norm > AGC_GRAD_HIGH:
+        scale *= AGC_SCALE_DOWN
+    scale = max(AGC_SCALE_MIN, min(AGC_SCALE_MAX, scale))
+    model.update_scale = scale
 
 
 class AbsoluteHallway(nn.Module):
@@ -438,6 +474,7 @@ class AbsoluteHallway(nn.Module):
         self.ptr_deadzone = PTR_DEADZONE
         self.ptr_deadzone_tau = PTR_DEADZONE_TAU
         self.ptr_walk_prob = PTR_WALK_PROB
+        self.update_scale = float(UPDATE_SCALE)
         self.ptr_vel_enabled = PTR_VEL
         self.ptr_vel_decay = PTR_VEL_DECAY
         self.ptr_vel_cap = PTR_VEL_CAP
@@ -717,8 +754,9 @@ class AbsoluteHallway(nn.Module):
             # scatter-add updates using the same Gaussian weights
             upd_exp = upd.unsqueeze(1).expand(-1, weights.size(1), -1)
             contrib = (weights.unsqueeze(-1) * upd_exp).to(state.dtype)
-            if UPDATE_SCALE != 1.0:
-                contrib = contrib * UPDATE_SCALE
+            scale = float(self.update_scale)
+            if scale != 1.0:
+                contrib = contrib * scale
             contrib = contrib * active_mask.view(B, 1, 1).to(contrib.dtype)
             state = state.scatter_add(1, pos_idx_exp, contrib)
             if STATE_CLIP > 0.0:
@@ -1426,6 +1464,8 @@ def train_wallclock(model, loader, dataset_name, model_name, num_classes, wall_c
             step_down=PTR_UPDATE_GOV_STEP_DOWN,
         )
         model.ptr_update_auto = False
+    else:
+        model.ptr_update_auto = PTR_UPDATE_AUTO
     start = time.time()
     end_time = start + wall_clock if wall_clock > 0 else float("inf")
     last_heartbeat = start
@@ -1477,13 +1517,14 @@ def train_wallclock(model, loader, dataset_name, model_name, num_classes, wall_c
                     scaler.unscale_(optimizer)
                     did_unscale = True
                 torch.nn.utils.clip_grad_norm_(model.parameters(), GRAD_CLIP)
-            if cadence_gov is not None and USE_AMP and scaler.is_enabled() and not did_unscale:
+            if (cadence_gov is not None or AGC_ENABLED) and USE_AMP and scaler.is_enabled() and not did_unscale:
                 scaler.unscale_(optimizer)
                 did_unscale = True
             if hasattr(model, "theta_ptr_reduced"):
                 with torch.no_grad():
                     grad = model.theta_ptr_reduced.grad
                     grad_norm = float(grad.norm().item()) if grad is not None else 0.0
+            apply_update_agc(model, grad_norm if hasattr(model, "theta_ptr_reduced") else None)
             scaler.step(optimizer)
             scaler.update()
 
@@ -1508,7 +1549,8 @@ def train_wallclock(model, loader, dataset_name, model_name, num_classes, wall_c
                     model.ptr_walk_prob = ctrl["walk_prob"]
             if cadence_gov is not None:
                 flip_rate = float(model.ptr_flip_rate) if hasattr(model, "ptr_flip_rate") else 0.0
-                model.ptr_update_every = cadence_gov.update(loss.item(), grad_norm, flip_rate)
+                ptr_velocity = getattr(model, "ptr_delta_abs_mean", None)
+                model.ptr_update_every = cadence_gov.update(loss.item(), grad_norm, flip_rate, ptr_velocity)
             if hasattr(model, "pointer_hist"):
                 if pointer_hist_sum is None:
                     pointer_hist_sum = model.pointer_hist.clone()
@@ -1537,7 +1579,7 @@ def train_wallclock(model, loader, dataset_name, model_name, num_classes, wall_c
                 elapsed = now - start
                 log(
                     f"{dataset_name} | {model_name} | step {step:04d} | loss {loss.item():.4f} | "
-                    f"t={elapsed:.1f}s | ctrl(inertia={model.ptr_inertia:.2f}, deadzone={model.ptr_deadzone:.2f}, walk={model.ptr_walk_prob:.2f}, cadence={model.ptr_update_every})"
+                    f"t={elapsed:.1f}s | ctrl(inertia={model.ptr_inertia:.2f}, deadzone={model.ptr_deadzone:.2f}, walk={model.ptr_walk_prob:.2f}, cadence={model.ptr_update_every}, scale={getattr(model, 'update_scale', UPDATE_SCALE):.3f})"
                     + (f" | panic={panic_status}" if panic_reflex is not None else "")
                 )
                 live_due = LIVE_TRACE_EVERY > 0 and (step % LIVE_TRACE_EVERY == 0)
@@ -1561,6 +1603,7 @@ def train_wallclock(model, loader, dataset_name, model_name, num_classes, wall_c
                         trace["ptr_inertia"] = model.ptr_inertia
                         trace["ptr_deadzone"] = model.ptr_deadzone
                         trace["ptr_walk_prob"] = model.ptr_walk_prob
+                        trace["update_scale"] = getattr(model, "update_scale", UPDATE_SCALE)
                         if panic_reflex is not None:
                             trace["panic_status"] = panic_status
                     if getattr(model, "debug_stats", None):
@@ -1758,6 +1801,8 @@ def train_steps(model, loader, steps, dataset_name, model_name):
             step_down=PTR_UPDATE_GOV_STEP_DOWN,
         )
         model.ptr_update_auto = False
+    else:
+        model.ptr_update_auto = PTR_UPDATE_AUTO
     while step < steps:
         try:
             inputs, targets = next(it)
@@ -1780,7 +1825,7 @@ def train_steps(model, loader, steps, dataset_name, model_name):
                 scaler.unscale_(optimizer)
                 did_unscale = True
             torch.nn.utils.clip_grad_norm_(model.parameters(), GRAD_CLIP)
-        if cadence_gov is not None and USE_AMP and scaler.is_enabled() and not did_unscale:
+        if (cadence_gov is not None or AGC_ENABLED) and USE_AMP and scaler.is_enabled() and not did_unscale:
             scaler.unscale_(optimizer)
             did_unscale = True
         grad_norm_step = 0.0
@@ -1788,6 +1833,7 @@ def train_steps(model, loader, steps, dataset_name, model_name):
             with torch.no_grad():
                 grad = model.theta_ptr_reduced.grad
                 grad_norm_step = float(grad.norm().item()) if grad is not None else 0.0
+        apply_update_agc(model, grad_norm_step if hasattr(model, "theta_ptr_reduced") else None)
         scaler.step(optimizer)
         scaler.update()
 
@@ -1817,7 +1863,8 @@ def train_steps(model, loader, steps, dataset_name, model_name):
                 model.ptr_walk_prob = ctrl["walk_prob"]
         if cadence_gov is not None:
             flip_rate = float(model.ptr_flip_rate) if hasattr(model, "ptr_flip_rate") else 0.0
-            model.ptr_update_every = cadence_gov.update(loss.item(), grad_norm_step, flip_rate)
+            ptr_velocity = getattr(model, "ptr_delta_abs_mean", None)
+            model.ptr_update_every = cadence_gov.update(loss.item(), grad_norm_step, flip_rate, ptr_velocity)
         now = time.time()
         grad_norm = None
         heartbeat_due = (step % HEARTBEAT_STEPS == 0) or (
@@ -1831,7 +1878,7 @@ def train_steps(model, loader, steps, dataset_name, model_name):
             elapsed = now - start
             log(
                 f"{dataset_name} | {model_name} | step {step:04d}/{steps:04d} | loss {loss.item():.4f} | "
-                f"t={elapsed:.1f}s | ctrl(inertia={model.ptr_inertia:.2f}, deadzone={model.ptr_deadzone:.2f}, walk={model.ptr_walk_prob:.2f}, cadence={model.ptr_update_every})"
+                f"t={elapsed:.1f}s | ctrl(inertia={model.ptr_inertia:.2f}, deadzone={model.ptr_deadzone:.2f}, walk={model.ptr_walk_prob:.2f}, cadence={model.ptr_update_every}, scale={getattr(model, 'update_scale', UPDATE_SCALE):.3f})"
                 + (f" | panic={panic_status}" if panic_reflex is not None else "")
             )
             if DEBUG_STATS and getattr(model, "debug_stats", None):
@@ -1868,6 +1915,7 @@ def train_steps(model, loader, steps, dataset_name, model_name):
                     "ptr_mean_dwell": getattr(model, "ptr_mean_dwell", None),
                     "ptr_max_dwell": getattr(model, "ptr_max_dwell", None),
                     "ptr_delta_abs_mean": getattr(model, "ptr_delta_abs_mean", None),
+                    "update_scale": getattr(model, "update_scale", UPDATE_SCALE),
                     "pointer_entropy": pointer_entropy,
                     "pointer_total": pointer_total,
                     "satiety_exits": getattr(model, "satiety_exits", None),
