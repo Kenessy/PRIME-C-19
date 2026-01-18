@@ -170,7 +170,10 @@ class Settings:
 def load_settings() -> Settings:
     root = _env_str("TP6_ROOT", str(Path(__file__).resolve().parents[1]))
     data_dir = os.path.join(root, "data")
-    log_path = os.path.join(root, "logs", "current", "tournament_phase6.log")
+    default_log_path = os.path.join(root, "logs", "current", "tournament_phase6.log")
+    log_path = _env_str("TP6_LOG_PATH", default_log_path)
+    if not log_path:
+        log_path = default_log_path
 
     seed = _env_int("TP6_SEED", 123)
     device = _env_str("TP6_DEVICE", "").lower()

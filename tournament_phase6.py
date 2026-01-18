@@ -1078,38 +1078,57 @@ def get_seq_mnist_loader():
             pairs = max(1, int(ASSOC_PAIRS))
             keys = max(2, int(ASSOC_KEYS))
             min_len = pairs * 2 + 1
-            if seq_len < min_len:
-                raise RuntimeError(
-                    f"assoc_clean requires SYNTH_LEN >= {min_len} (got {seq_len})"
-                )
-            x = torch.zeros((n_samples, seq_len, 1), dtype=torch.float32)
-            y = torch.zeros((n_samples,), dtype=torch.long)
-            max_start = seq_len - 3  # reserve last token for query
-            for idx in range(n_samples):
-                used = set()
-                pair_specs = []
-                for _ in range(pairs):
-                    t = None
-                    for _ in range(1000):
-                        cand = random.randint(0, max_start)
+            bump_attempts = 0
+            max_bumps = 5
+
+            def _build_assoc(seq_len_local: int):
+                x_local = torch.zeros((n_samples, seq_len_local, 1), dtype=torch.float32)
+                y_local = torch.zeros((n_samples,), dtype=torch.long)
+                max_start_local = seq_len_local - 3  # reserve last token for query
+                for idx in range(n_samples):
+                    used = set()
+                    pair_specs = []
+                    starts = list(range(0, max_start_local + 1))
+                    random.shuffle(starts)
+                    for cand in starts:
                         if cand in used or (cand + 1) in used:
                             continue
-                        t = cand
-                        break
-                    if t is None:
-                        raise RuntimeError("assoc_clean: failed to place non-overlapping pairs")
-                    used.add(t)
-                    used.add(t + 1)
-                    key_id = random.randint(0, keys - 1)
-                    val = random.randint(0, 1)
-                    key_token = float(2 + key_id)
-                    val_token = -1.0 if val == 0 else -2.0
-                    x[idx, t, 0] = key_token
-                    x[idx, t + 1, 0] = val_token
-                    pair_specs.append((key_id, val, key_token))
-                _, q_val, q_token = random.choice(pair_specs)
-                x[idx, -1, 0] = q_token
-                y[idx] = q_val
+                        used.add(cand)
+                        used.add(cand + 1)
+                        key_id = random.randint(0, keys - 1)
+                        val = random.randint(0, 1)
+                        key_token = float(2 + key_id)
+                        val_token = -1.0 if val == 0 else -2.0
+                        x_local[idx, cand, 0] = key_token
+                        x_local[idx, cand + 1, 0] = val_token
+                        pair_specs.append((key_id, val, key_token))
+                        if len(pair_specs) >= pairs:
+                            break
+                    if len(pair_specs) < pairs:
+                        return None, None
+                    _, q_val, q_token = random.choice(pair_specs)
+                    x_local[idx, -1, 0] = q_token
+                    y_local[idx] = q_val
+                return x_local, y_local
+
+            if seq_len < min_len:
+                log(f"[synth] assoc_clean bump len from {seq_len} to {min_len} (min_len)")
+                seq_len = min_len
+
+            x = None
+            y = None
+            while bump_attempts <= max_bumps:
+                x, y = _build_assoc(seq_len)
+                if x is not None:
+                    break
+                bump_attempts += 1
+                new_len = seq_len + max(2, pairs) * 2
+                log(f"[synth] assoc_clean bump len from {seq_len} to {new_len} (placement failed)")
+                seq_len = new_len
+
+            if x is None:
+                raise RuntimeError("assoc_clean: failed to place non-overlapping pairs after bumps")
+
             SYNTH_META.update({"assoc_keys": keys, "assoc_pairs": pairs, "synth_len": seq_len})
             num_classes = 2
             log(f"[synth] mode=assoc_clean rows={int(n_samples)} keys={keys} pairs={pairs} len={seq_len}")
