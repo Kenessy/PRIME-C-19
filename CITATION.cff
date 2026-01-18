@@ -1,13 +1,15 @@
 cff-version: 1.2.0
-title: "PRIME C-19 — Phase-Recurring Infinite Manifold Engine (Project David)"
+title: "PRIME C-19 - Phase-Recurring Infinite Manifold Engine (Project David)"
 message: "If you use this work, please cite it."
 type: software
 authors:
   - family-names: "Kenessy"
-    given-names: "Dani"
+    given-names: "Daniel"
     email: "kenessy.dani@gmail.com"
-date-released: "2026-01-16"
-license: "PolyForm Noncommercial 1.0.0"
+license: "PolyForm-Noncommercial-1.0.0"
+repository-code: "https://github.com/Kenessy/PRIME-C-19"
+date-released: "2026-01-18"
+version: "v0.1.0"
 keywords:
   - pointer memory
   - circular memory
