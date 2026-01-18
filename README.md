@@ -67,7 +67,7 @@ error-correction loops can yield measurable self-monitoring and potentially
 serve as a pathway to machine self-conscious behavior. This is unproven and is
 framed as a testable research hypothesis.
 
-### Riemann Consciousness Conjecture (Hypothesis)
+### The Pilot-Pulse Conjecture (Hypothesis)
 
 Core thesis: intelligence is not only compute or storage, but navigation
 efficiency on a structured manifold. "Thinking" is the control agent (Pilot)
@@ -399,6 +399,7 @@ See:
 <details>
 <summary><strong>Latest Patches</strong></summary>
 
+- 2026-01-17: Added the Pilot-Pulse Conjecture (hypothesis framing for navigation-based intelligence).
 - 2026-01-17: Evolution checkpoints + resume (TP6_EVO_RESUME, evo_latest.pt).
 - 2026-01-17: Infinite evolution when TP6_EVO_GENS=0.
 - 2026-01-17: Heartbeat logging added inside evolution training loop.
