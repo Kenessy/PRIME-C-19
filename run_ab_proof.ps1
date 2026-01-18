@@ -44,12 +44,12 @@ function Run-Once {
   foreach ($k in $EnvVars.Keys) {
     Set-Item -Path ("Env:{0}" -f $k) -Value $EnvVars[$k]
   }
-  Set-Item -Path "Env:TP6_SEED" -Value $Seed
+  Set-Item -Path "Env:VAR_RUN_SEED" -Value $Seed
   Set-Item -Path "Env:TP6_MAX_STEPS" -Value $Steps
   Set-Item -Path "Env:TP6_WALL" -Value $Wall
-  Set-Item -Path "Env:TP6_HEARTBEAT_SECS" -Value $Interval
-  Set-Item -Path "Env:TP6_LIVE_TRACE" -Value ""
-  Set-Item -Path "Env:TP6_LIVE_TRACE_EVERY" -Value 1
+  Set-Item -Path "Env:VAR_LOG_EVERY_N_SECS" -Value $Interval
+  Set-Item -Path "Env:VAR_LIVE_TRACE_PATH" -Value ""
+  Set-Item -Path "Env:VAR_LIVE_TRACE_EVERY_N_STEPS" -Value 1
 
   if (Test-Path $summaryPath) { Remove-Item $summaryPath -Force }
 
@@ -64,7 +64,7 @@ function Run-Once {
 }
 
 $common = @{
-  TP6_DEVICE = "cuda"
+  VAR_COMPUTE_DEVICE = "cuda"
   TP6_PRECISION = "fp32"
   TP6_BATCH_SIZE = "128"
   TP6_LR = "1e-3"
@@ -136,3 +136,8 @@ foreach ($variant in @("baseline", "stabilized")) {
   $avgLoss = ($subset | Measure-Object -Property eval_loss -Average).Average
   Write-Host ("{0,-10} flip {1:n3} | dwell {2:n2} | acc {3:n3} | loss {4:n4}" -f $variant, $avgFlip, $avgDwell, $avgAcc, $avgLoss)
 }
+
+
+
+
+

@@ -23,6 +23,21 @@ seam is smooth and does not "teleport" across the ring.
 The codename **PRIME C-19** also includes a custom activation function
 ("Candidate-19"), defined below.
 
+## Hypothesis (Claim, Not Proof): Recursive Self-Monitoring
+We disclose the following research hypothesis as prior art.
+
+Claim (hypothesis): A persistent recurrent loop that predicts its own next
+state and updates from the prediction error can yield measurable self-monitoring.
+We further hypothesize that sufficiently stable self-monitoring may be a pathway
+to machine self-conscious behavior. This is not yet proven.
+
+Testable predictions (falsifiable):
+1) The system can learn to predict its own next-step error better than chance.
+2) After perturbations, the loop returns to baseline within a bounded recovery
+   window (tau).
+3) Error-prediction accuracy improves with deeper or longer loops even when
+   task accuracy is held constant.
+
 ## Core Components
 
 ### 1) Circular Memory Ring

@@ -62,6 +62,11 @@ on micro `assoc_clean` (len=8, keys=2, pairs=1) at 800 steps across 3 seeds, and
 the cadence knee occurs at `update_every >= 8`. This supports ALH as a working
 hypothesis, not a general proof.
 
+Claim (hypothesis, not proof): PRIME C-19 also explores whether recursive
+error-correction loops can yield measurable self-monitoring and potentially
+serve as a pathway to machine self-conscious behavior. This is unproven and is
+framed as a testable research hypothesis.
+
 Full narrative (speculative): `docs/HYPOTHESIS.md`
 
 ---

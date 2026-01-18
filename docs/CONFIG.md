@@ -7,12 +7,12 @@ and `prime_c19/settings.py`. Defaults are from code; scripts may override them.
 
 | Env var | Default | Type | Purpose |
 | --- | --- | --- | --- |
-| TP6_ROOT | repo root | str | Project root override (data/logs relative paths). |
-| TP6_DEVICE | auto | str | `cuda` or `cpu` device selection. |
+| VAR_PROJECT_ROOT | repo root | str | Project root override (data/logs relative paths). |
+| VAR_COMPUTE_DEVICE | auto | str | `cuda` or `cpu` device selection. |
 | PILOT_OFFLINE | 1 | flag | Disable network downloads (offline-only mode). |
-| TP6_AUDIO_BACKEND | "" | str | Torchaudio backend name (if available). |
-| TP6_SEED | 123 | int | RNG seed for numpy/torch/python. |
-| TP6_LOG_PATH | (derived) | str | Override log file path (default: `logs/current/tournament_phase6.log`). |
+| VAR_TORCHAUDIO_BACKEND | "" | str | Torchaudio backend name (if available). |
+| VAR_RUN_SEED | 123 | int | RNG seed for numpy/torch/python. |
+| VAR_LOGGING_PATH | (derived) | str | Override log file path (default: `logs/current/tournament_phase6.log`). |
 
 ## Data & batching
 
@@ -37,13 +37,13 @@ and `prime_c19/settings.py`. Defaults are from code; scripts may override them.
 | TP6_LR | 1e-3 | float | Optimizer LR. |
 | TP6_WALL | 900 | int | Wall-clock seconds for `train_wallclock`. |
 | TP6_MAX_STEPS | 0 | int | Hard cap on steps (0 = no cap). |
-| TP6_HEARTBEAT | 10 | int | Log every N steps. |
-| TP6_HEARTBEAT_SECS | 0.0 | float | Log every N seconds (0 = off). |
-| TP6_LIVE_TRACE_EVERY | heartbeat | int | Live trace interval (steps). |
-| TP6_LIVE_TRACE | traces/current/live_trace.json | str | Live trace output path. |
-| TP6_TRAIN_TRACE | 0 | flag | Write train_steps trace JSONL. |
-| TP6_TRAIN_TRACE_PATH | traces/current/train_steps_trace.jsonl | str | Train trace output path. |
-| TP6_LOSS_KEEP | 2000 | int | Loss history length for slope. |
+| VAR_LOG_EVERY_N_STEPS | 10 | int | Log every N steps. |
+| VAR_LOG_EVERY_N_SECS | 0.0 | float | Log every N seconds (0 = off). |
+| VAR_LIVE_TRACE_EVERY_N_STEPS | heartbeat | int | Live trace interval (steps). |
+| VAR_LIVE_TRACE_PATH | traces/current/live_trace.json | str | Live trace output path. |
+| VAR_TRAINING_TRACE_ENABLED | 0 | flag | Write train_steps trace JSONL. |
+| VAR_TRAINING_TRACE_PATH | traces/current/train_steps_trace.jsonl | str | Train trace output path. |
+| VAR_LOSS_HISTORY_LEN | 2000 | int | Loss history length for slope. |
 | TP6_SATIETY | 0.98 | float | Early-exit confidence threshold. |
 
 ## Ring geometry & kernels
@@ -204,3 +204,7 @@ and `prime_c19/settings.py`. Defaults are from code; scripts may override them.
 | TP6_EVO_RESUME | 0 | flag | Resume evolution from latest. |
 | TP6_EVO_CKPT_INDIV | 1 | flag | Save per-individual checkpoints. |
 | TP6_EVO_PROGRESS | 1 | flag | Log per-individual progress. |
+
+
+
+

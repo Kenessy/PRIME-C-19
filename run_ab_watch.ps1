@@ -72,10 +72,10 @@ function Run-Phase {
   foreach ($k in $EnvVars.Keys) {
     Set-Item -Path ("Env:{0}" -f $k) -Value $EnvVars[$k]
   }
-  Set-Item -Path "Env:TP6_LIVE_TRACE" -Value $tracePath
+  Set-Item -Path "Env:VAR_LIVE_TRACE_PATH" -Value $tracePath
   Set-Item -Path "Env:TP6_WALL" -Value $Wall
-  Set-Item -Path "Env:TP6_HEARTBEAT_SECS" -Value $Interval
-  Set-Item -Path "Env:TP6_LIVE_TRACE_EVERY" -Value 1
+  Set-Item -Path "Env:VAR_LOG_EVERY_N_SECS" -Value $Interval
+  Set-Item -Path "Env:VAR_LIVE_TRACE_EVERY_N_STEPS" -Value 1
   Set-Item -Path "Env:TP6_DEBUG_NAN" -Value 1
   Set-Item -Path "Env:TP6_DEBUG_STATS" -Value 1
   Set-Item -Path "Env:TP6_DEBUG_EVERY" -Value 1
@@ -128,7 +128,7 @@ function Run-Phase {
 }
 
 $common = @{
-  TP6_DEVICE = "cuda"
+  VAR_COMPUTE_DEVICE = "cuda"
   TP6_PRECISION = "fp32"
   TP6_BATCH_SIZE = "128"
   TP6_LR = "1e-3"
@@ -169,3 +169,7 @@ Write-Host ""
 Write-Host "==> A/B Summary"
 Write-Host ("baseline  flip {0:n3} dwell {1:n2} acc {2:n3} loss {3:n4}" -f $baseSummary.ptr_flip_rate, $baseSummary.ptr_mean_dwell, $baseSummary.eval_acc, $baseSummary.eval_loss)
 Write-Host ("stabilzd  flip {0:n3} dwell {1:n2} acc {2:n3} loss {3:n4}" -f $stabSummary.ptr_flip_rate, $stabSummary.ptr_mean_dwell, $stabSummary.eval_acc, $stabSummary.eval_loss)
+
+
+
+

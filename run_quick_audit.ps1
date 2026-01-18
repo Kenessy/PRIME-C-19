@@ -16,7 +16,7 @@ function Run-Case {
   )
 
   Write-Host "=== Running $Name ==="
-  $env:TP6_DEVICE = $Device
+  $env:VAR_COMPUTE_DEVICE = $Device
   $env:TP6_PRECISION = "fp32"
   $env:TP6_SYNTH = "1"
   $env:TP6_SYNTH_MODE = "markov0"
@@ -26,10 +26,10 @@ function Run-Case {
   $env:TP6_BATCH_SIZE = "$Batch"
   $env:TP6_LR = "1e-4"
   $env:TP6_WALL = "$Wall"
-  $env:TP6_HEARTBEAT_SECS = "5"
-  $env:TP6_HEARTBEAT = "10"
-  $env:TP6_LIVE_TRACE_EVERY = "1"
-  $env:TP6_LIVE_TRACE = "$root\\live_trace_$Name.json"
+  $env:VAR_LOG_EVERY_N_SECS = "5"
+  $env:VAR_LOG_EVERY_N_STEPS = "10"
+  $env:VAR_LIVE_TRACE_EVERY_N_STEPS = "1"
+  $env:VAR_LIVE_TRACE_PATH = "$root\\live_trace_$Name.json"
   $env:TP6_DEBUG_NAN = "1"
   $env:TP6_DEBUG_STATS = "1"
   $env:TP6_DEBUG_EVERY = "1"
@@ -81,3 +81,8 @@ Run-Case "phantom" @{
 }
 
 Write-Host "=== Quick audit complete ==="
+
+
+
+
+

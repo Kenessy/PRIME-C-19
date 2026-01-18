@@ -16,7 +16,7 @@ All dates are local time (YYYY-MM-DD).
 - Evolution: pointer-only mutation option (`TP6_EVO_POINTER_ONLY=1`).
 - Evolution: infinite generations when `TP6_EVO_GENS=0`.
 - Logging: heartbeat status + grad_norm added to evolution training loop.
-- Logging: optional per-step evolution checkpoints (`TP6_EVO_CKPT_INDIV=1`) and train trace JSONL (`TP6_TRAIN_TRACE=1`).
+- Logging: optional per-step evolution checkpoints (`TP6_EVO_CKPT_INDIV=1`) and train trace JSONL (`VAR_TRAINING_TRACE_ENABLED=1`).
 - Logging: expanded debug stats to include pointer entropy, satiety exits, and state-loop metrics in traces.
 - Data: added `assoc_clean` synthetic mode (no-noise associative recall) with `TP6_ASSOC_KEYS/TP6_ASSOC_PAIRS`.
 - Fix: readout now uses pre-update pointer (aligns read with write). Restores CE gradients on assoc_clean.
@@ -38,3 +38,6 @@ All dates are local time (YYYY-MM-DD).
 ### A/B smoke (60 steps, seed 123)
 - baseline: flip 0.9956 | dwell 1.0005 | acc 0.12695 | loss 2.3017
 - stabilized: flip 0.4075 | dwell 5.2708 | acc 0.10938 | loss 2.8126
+
+
+

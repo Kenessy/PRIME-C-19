@@ -168,19 +168,19 @@ class Settings:
 
 
 def load_settings() -> Settings:
-    root = _env_str("TP6_ROOT", str(Path(__file__).resolve().parents[1]))
+    root = _env_str("VAR_PROJECT_ROOT", str(Path(__file__).resolve().parents[1]))
     data_dir = os.path.join(root, "data")
     default_log_path = os.path.join(root, "logs", "current", "tournament_phase6.log")
-    log_path = _env_str("TP6_LOG_PATH", default_log_path)
+    log_path = _env_str("VAR_LOGGING_PATH", default_log_path)
     if not log_path:
         log_path = default_log_path
 
-    seed = _env_int("TP6_SEED", 123)
-    device = _env_str("TP6_DEVICE", "").lower()
+    seed = _env_int("VAR_RUN_SEED", 123)
+    device = _env_str("VAR_COMPUTE_DEVICE", "").lower()
     if device not in {"cuda", "cpu"}:
         device = "cuda" if torch.cuda.is_available() else "cpu"
     offline_only = _env_flag("PILOT_OFFLINE", True)
-    audio_backend = _env_str("TP6_AUDIO_BACKEND", "")
+    audio_backend = _env_str("VAR_TORCHAUDIO_BACKEND", "")
 
     max_samples = _env_int("TP6_MAX_SAMPLES", 5000)
     eval_samples = _env_int("TP6_EVAL_SAMPLES", 1024)
@@ -189,9 +189,9 @@ def load_settings() -> Settings:
     lr = _env_float("TP6_LR", 1e-3)
     wall_clock_seconds = _env_int("TP6_WALL", 15 * 60)
     max_steps = _env_int("TP6_MAX_STEPS", 0)
-    heartbeat_steps = _env_int("TP6_HEARTBEAT", 10)
-    heartbeat_secs = _env_float("TP6_HEARTBEAT_SECS", 0.0)
-    live_trace_every = _env_int("TP6_LIVE_TRACE_EVERY", heartbeat_steps)
+    heartbeat_steps = _env_int("VAR_LOG_EVERY_N_STEPS", 10)
+    heartbeat_secs = _env_float("VAR_LOG_EVERY_N_SECS", 0.0)
+    live_trace_every = _env_int("VAR_LIVE_TRACE_EVERY_N_STEPS", heartbeat_steps)
     satiety_thresh = _env_float("TP6_SATIETY", 0.98)
 
     ring_len = _env_int("TP6_RING_LEN", 4096)
@@ -294,13 +294,13 @@ def load_settings() -> Settings:
     state_clip = _env_float("TP6_STATE_CLIP", 0.0)
     state_decay = _env_float("TP6_STATE_DECAY", 1.0)
     update_scale = _env_float("TP6_UPDATE_SCALE", 1.0)
-    live_trace_path = _env_str("TP6_LIVE_TRACE", os.path.join(root, "traces", "current", "live_trace.json"))
+    live_trace_path = _env_str("VAR_LIVE_TRACE_PATH", os.path.join(root, "traces", "current", "live_trace.json"))
     run_mode = _env_str("TP6_MODE", "train")
 
     checkpoint_path = _env_str("TP6_CKPT", os.path.join(root, "checkpoint.pt"))
     save_every_steps = _env_int("TP6_SAVE_EVERY", 100)
     resume = _env_flag("TP6_RESUME", False)
-    loss_keep = _env_int("TP6_LOSS_KEEP", 2000)
+    loss_keep = _env_int("VAR_LOSS_HISTORY_LEN", 2000)
 
     phase_a_steps = _env_int("TP6_PHASE_A_STEPS", 50)
     phase_b_steps = _env_int("TP6_PHASE_B_STEPS", 50)
@@ -320,9 +320,9 @@ def load_settings() -> Settings:
     evo_resume = _env_flag("TP6_EVO_RESUME", False)
     evo_checkpoint_individual = _env_flag("TP6_EVO_CKPT_INDIV", True)
     evo_progress = _env_flag("TP6_EVO_PROGRESS", True)
-    train_trace = _env_flag("TP6_TRAIN_TRACE", False)
+    train_trace = _env_flag("VAR_TRAINING_TRACE_ENABLED", False)
     train_trace_path = _env_str(
-        "TP6_TRAIN_TRACE_PATH",
+        "VAR_TRAINING_TRACE_PATH",
         os.path.join(root, "traces", "current", "train_steps_trace.jsonl"),
     )
 
@@ -456,3 +456,6 @@ def load_settings() -> Settings:
         train_trace=train_trace,
         train_trace_path=train_trace_path,
     )
+
+
+

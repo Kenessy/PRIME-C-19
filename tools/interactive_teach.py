@@ -86,7 +86,7 @@ def parse_args() -> argparse.Namespace:
 
 
 def apply_env(args: argparse.Namespace, device: str) -> None:
-    os.environ["TP6_DEVICE"] = device
+    os.environ["VAR_COMPUTE_DEVICE"] = device
     os.environ["TP6_PRECISION"] = args.precision
     os.environ["TP6_ACT"] = args.act
     os.environ["TP6_GAUSS_K"] = str(args.gauss_k)
@@ -371,3 +371,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
