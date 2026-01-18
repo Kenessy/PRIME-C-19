@@ -59,8 +59,8 @@ not proven physics.
 
 Evidence so far (bounded): the Unified Manifold Governor reaches **1.00 acc**
 on micro `assoc_clean` (len=8, keys=2, pairs=1) at 800 steps across 3 seeds, and
-the cadence knee occurs at `update_every >= 8`. This supports ALH as a working
-hypothesis, not a general proof.
+the cadence knee occurs at `update_every >= 8` (see `docs/ASSOC_CLEAN_SWEEP.md`).
+This supports ALH as a working hypothesis, not a general proof.
 
 Claim (hypothesis, not proof): PRIME C-19 also explores whether recursive
 error-correction loops can yield measurable self-monitoring and potentially
@@ -133,8 +133,8 @@ This forces error signals to flow through the shortest bridge across the ring.
 
 2) Fractional Gaussian Kernels (Gradients)
 Discrete pointers have zero gradients between steps. PRIME C-19 uses fractional
-read/write heads with truncated Gaussian kernels. Pointer math is forced to FP32
-for stable sub-bin gradients even under fp16/amp.
+read/write heads with truncated Gaussian kernels. Pointer math defaults to FP32
+for stable sub-bin gradients and can be set via `TP6_PTR_DTYPE`.
 
 3) Mobius Phase Embedding (Capacity)
 Optional continuous phase embedding over a logical [0, 2N) coordinate space.
@@ -146,9 +146,13 @@ shows a clear knee at update_every >= 8 (see Evidence below).
 
 5) Configurable Pointer Precision: `TP6_PTR_DTYPE` now wires pointer math to fp32/fp64 as needed.
 
-6) Zero-Control Stability: Confirmed that raw gradient updates (no inertia/deadzone) are safe under RIUSS 98.2 constraints.
+6) Zero-Control Stability (internal): In several runs, raw gradient updates
+(no inertia/deadzone) stayed stable. This is an internal observation, not a
+general guarantee.
 
-7) Laminar vs. Chaos: High-precision, low-traction descent (Member 0_5) produces higher signal conversion than high-energy stochastic jumps (Member 0_4).
+7) Laminar vs. Chaos (internal): In some runs, low-traction descent showed
+better signal conversion than high-energy jumps. Logged as a directional
+finding, not a formal result.
 
 8(?)) Hypothesis only but strong: In high-dimensional associative memory (f.e.: 2048 units), momentum is a liability. 
 Pointers must be able to change direction instantly to settle into "laminar" basins. 
@@ -212,8 +216,8 @@ set TP6_PTR_NO_ROUND=1
 set TP6_SOFT_READOUT=1
 set TP6_LMOVE=0
 
-set TP6_PANIC_ENABLED=0
-set TP6_THERMO_ENABLED=0
+set TP6_PANIC=0
+set TP6_THERMO=0
 
 python tournament_phase6.py
 ```
