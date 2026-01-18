@@ -30,3 +30,10 @@ audit_findings_temp.md
 # OS
 .DS_Store
 Thumbs.db
+# Keep checkpoints, artifacts, logs, and transient outputs out of git
+checkpoint.pt
+artifacts/
+logs/
+*.log
+live_trace_*.json
+summary_*.json
