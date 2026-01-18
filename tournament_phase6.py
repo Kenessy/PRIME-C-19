@@ -51,6 +51,8 @@ HEARTBEAT_SECS = CFG.heartbeat_secs
 LIVE_TRACE_EVERY = CFG.live_trace_every
 SATIETY_THRESH = CFG.satiety_thresh
 RING_LEN = CFG.ring_len
+SLOT_DIM = CFG.slot_dim
+PTR_DTYPE = CFG.ptr_dtype
 PTR_PARAM_STRIDE = CFG.ptr_param_stride
 # Gaussian window + movement penalty controls
 GAUSS_K = CFG.gauss_k  # neighbors on each side; window size = 2*K+1
@@ -410,7 +412,7 @@ class AbsoluteHallway(nn.Module):
         input_dim,
         num_classes,
         ring_len=RING_LEN,
-        slot_dim=8,
+        slot_dim=SLOT_DIM,
         ptr_stride=PTR_PARAM_STRIDE,
         gauss_k=GAUSS_K,
         gauss_tau=GAUSS_TAU,
@@ -612,7 +614,7 @@ class AbsoluteHallway(nn.Module):
         B, T, _ = x.shape
         device = x.device
         ring_range = self.ring_range
-        ptr_dtype = torch.float32
+        ptr_dtype = PTR_DTYPE
         state = torch.zeros(B, ring_range, self.slot_dim, device=device, dtype=x.dtype)
         # randomize start pointer per sample to break symmetry (float for STE)
         if self.ptr_lock:
@@ -1063,18 +1065,11 @@ def get_seq_mnist_loader():
     SYNTH_META.clear()
     if os.environ.get("TP6_SYNTH", "0") == "1":
         synth_mode = SYNTH_MODE
-        SYNTH_META.update({"enabled": True, "mode": synth_mode, "synth_len": SYNTH_LEN})
+        base_seq_len = max(1, int(SYNTH_LEN))
+        SYNTH_META.update({"enabled": True, "mode": synth_mode, "synth_len": base_seq_len})
         n_samples = max(1, MAX_SAMPLES)
-        # Synthetic inputs: [B,256,1]
-        x = torch.randint(0, 2, (n_samples, 256, 1), dtype=torch.float32)
-        if synth_mode == "markov0":
-            y = x[:, -1, 0].to(torch.long)
-        elif synth_mode == "markov0_flip":
-            y = (1 - x[:, -1, 0]).to(torch.long)
-        elif synth_mode == "const0":
-            y = torch.zeros((n_samples,), dtype=torch.long)
-        elif synth_mode == "assoc_clean":
-            seq_len = int(SYNTH_LEN)
+        if synth_mode == "assoc_clean":
+            seq_len = base_seq_len
             pairs = max(1, int(ASSOC_PAIRS))
             keys = max(2, int(ASSOC_KEYS))
             min_len = pairs * 2 + 1
@@ -1210,7 +1205,15 @@ def get_seq_mnist_loader():
             num_classes = max(2, max(ys) + 1 if ys else 2)
             return loader, num_classes, collate
         else:
-            y = torch.randint(0, 2, (n_samples,), dtype=torch.long)
+            x = torch.randint(0, 2, (n_samples, base_seq_len, 1), dtype=torch.float32)
+            if synth_mode == "markov0":
+                y = x[:, -1, 0].to(torch.long)
+            elif synth_mode == "markov0_flip":
+                y = (1 - x[:, -1, 0]).to(torch.long)
+            elif synth_mode == "const0":
+                y = torch.zeros((n_samples,), dtype=torch.long)
+            else:
+                y = torch.randint(0, 2, (n_samples,), dtype=torch.long)
         SYNTH_META.update({"rows": int(n_samples)})
         log(f"[synth] mode={synth_mode} rows={int(n_samples)}")
 
@@ -1230,7 +1233,7 @@ def get_seq_mnist_loader():
         loader = DataLoader(
             ds,
             batch_size=BATCH_SIZE,
-            shuffle=True,
+            shuffle=SYNTH_SHUFFLE,
             num_workers=0,
             pin_memory=False,
             collate_fn=collate,
@@ -1423,25 +1426,6 @@ def train_wallclock(model, loader, dataset_name, model_name, num_classes, wall_c
             step_down=PTR_UPDATE_GOV_STEP_DOWN,
         )
         model.ptr_update_auto = False
-    cadence_gov = None
-    if PTR_UPDATE_GOV:
-        cadence_gov = CadenceGovernor(
-            start_tau=float(PTR_UPDATE_EVERY),
-            warmup_steps=PTR_UPDATE_GOV_WARMUP,
-            min_tau=PTR_UPDATE_MIN,
-            max_tau=PTR_UPDATE_MAX,
-            ema=PTR_UPDATE_EMA,
-            target_flip=PTR_UPDATE_TARGET_FLIP,
-            grad_high=PTR_UPDATE_GOV_GRAD_HIGH,
-            grad_low=PTR_UPDATE_GOV_GRAD_LOW,
-            loss_flat=PTR_UPDATE_GOV_LOSS_FLAT,
-            loss_spike=PTR_UPDATE_GOV_LOSS_SPIKE,
-            step_up=PTR_UPDATE_GOV_STEP_UP,
-            step_down=PTR_UPDATE_GOV_STEP_DOWN,
-        )
-        # Avoid double cadence controllers when governor is active.
-        model.ptr_update_auto = False
-
     start = time.time()
     end_time = start + wall_clock if wall_clock > 0 else float("inf")
     last_heartbeat = start
@@ -1757,6 +1741,23 @@ def train_steps(model, loader, steps, dataset_name, model_name):
             inertia_high=PANIC_INERTIA_HIGH,
             walk_prob_max=PANIC_WALK_MAX,
         )
+    cadence_gov = None
+    if PTR_UPDATE_GOV:
+        cadence_gov = CadenceGovernor(
+            start_tau=float(PTR_UPDATE_EVERY),
+            warmup_steps=PTR_UPDATE_GOV_WARMUP,
+            min_tau=PTR_UPDATE_MIN,
+            max_tau=PTR_UPDATE_MAX,
+            ema=PTR_UPDATE_EMA,
+            target_flip=PTR_UPDATE_TARGET_FLIP,
+            grad_high=PTR_UPDATE_GOV_GRAD_HIGH,
+            grad_low=PTR_UPDATE_GOV_GRAD_LOW,
+            loss_flat=PTR_UPDATE_GOV_LOSS_FLAT,
+            loss_spike=PTR_UPDATE_GOV_LOSS_SPIKE,
+            step_up=PTR_UPDATE_GOV_STEP_UP,
+            step_down=PTR_UPDATE_GOV_STEP_DOWN,
+        )
+        model.ptr_update_auto = False
     while step < steps:
         try:
             inputs, targets = next(it)
@@ -1988,18 +1989,18 @@ def run_evolution(dataset_name, loader, eval_loader, input_dim, num_classes):
     # init population
     population = []
     if resume_state is not None:
-        elite = AbsoluteHallway(input_dim=input_dim, num_classes=num_classes, ring_len=RING_LEN, slot_dim=8)
+        elite = AbsoluteHallway(input_dim=input_dim, num_classes=num_classes, ring_len=RING_LEN, slot_dim=SLOT_DIM)
         elite.load_state_dict(resume_state)
         population.append(elite)
         while len(population) < EVO_POP:
-            child = AbsoluteHallway(input_dim=input_dim, num_classes=num_classes, ring_len=RING_LEN, slot_dim=8)
+            child = AbsoluteHallway(input_dim=input_dim, num_classes=num_classes, ring_len=RING_LEN, slot_dim=SLOT_DIM)
             child.load_state_dict(
                 mutate_state_dict(resume_state, std=EVO_MUT_STD, pointer_only=EVO_POINTER_ONLY)
             )
             population.append(child)
     else:
         for _ in range(EVO_POP):
-            m = AbsoluteHallway(input_dim=input_dim, num_classes=num_classes, ring_len=RING_LEN, slot_dim=8)
+            m = AbsoluteHallway(input_dim=input_dim, num_classes=num_classes, ring_len=RING_LEN, slot_dim=SLOT_DIM)
             population.append(m)
 
     best_eval = None
@@ -2028,7 +2029,7 @@ def run_evolution(dataset_name, loader, eval_loader, input_dim, num_classes):
         new_population = [e[1] for e in elites]  # keep elites
         while len(new_population) < EVO_POP:
             parent = random.choice(elites)[1]
-            child = AbsoluteHallway(input_dim=input_dim, num_classes=num_classes, ring_len=RING_LEN, slot_dim=8)
+            child = AbsoluteHallway(input_dim=input_dim, num_classes=num_classes, ring_len=RING_LEN, slot_dim=SLOT_DIM)
             child.load_state_dict(
                 mutate_state_dict(parent.state_dict(), std=EVO_MUT_STD, pointer_only=EVO_POINTER_ONLY)
             )
@@ -2050,7 +2051,7 @@ def run_phase(dataset_name: str, loader, eval_loader, input_dim: int, num_classe
     if SYNTH_META.get("enabled"):
         extra = f" | synth_mode={SYNTH_META.get('mode')}"
     log(f"=== Phase 6.5 | dataset={dataset_name} | num_classes={num_classes}{extra} ===")
-    hallway = AbsoluteHallway(input_dim=input_dim, num_classes=num_classes, ring_len=RING_LEN, slot_dim=8)
+    hallway = AbsoluteHallway(input_dim=input_dim, num_classes=num_classes, ring_len=RING_LEN, slot_dim=SLOT_DIM)
     hall_train = train_wallclock(hallway, loader, dataset_name, "absolute_hallway", num_classes)
     hall_eval = eval_model(hallway, eval_loader, dataset_name, "absolute_hallway")
     result = {"dataset": dataset_name, "absolute_hallway": {"train": hall_train, "eval": hall_eval}}
@@ -2065,7 +2066,7 @@ def run_lockout_test():
     eval_a, _ = build_eval_loader_from_subset(loader_a.dataset, input_collate=collate)
     eval_b, _ = build_eval_loader_from_subset(loader_b.dataset, input_collate=collate)
 
-    model = AbsoluteHallway(input_dim=1, num_classes=2, ring_len=RING_LEN, slot_dim=8)
+    model = AbsoluteHallway(input_dim=1, num_classes=2, ring_len=RING_LEN, slot_dim=SLOT_DIM)
 
     train_a = train_steps(model, loader_a, PHASE_A_STEPS, "synthA", "absolute_hallway")
     eval_a_post = eval_model(model, eval_a, "synthA", "absolute_hallway")

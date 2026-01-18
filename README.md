@@ -98,6 +98,7 @@ Full narrative (speculative): `docs/HYPOTHESIS.md`
 Phase 1 - Prove it works (current)
 - Foundation fixes: seam-safe interpolation, fractional kernels, cadence knee, Unified Manifold Governor. (Done)
 - Micro assoc_clean stability at 800 steps. (Done)
+- Seq-MNIST learning signal on CPU subset (loss < ln(10) with soft readout + no-round). (Done)
 - Hard assoc_clean >= 0.80 acc (len=32, keys=4, pairs=2). (In progress)
 
 Phase 2 - Improve it
@@ -112,6 +113,7 @@ Phase 1 checklist:
 - [x] FP32 pointer math for fractional kernels (sub-bin gradients).
 - [x] Cadence knee documented (update_every >= 8).
 - [x] Unified Manifold Governor reaches 1.00 acc on micro assoc_clean.
+- [x] Seq-MNIST learning signal on CPU subset (loss < ln(10), eval_acc > 0.12).
 - [ ] Hard assoc_clean >= 0.80 acc (len=32, keys=4, pairs=2).
 
 Phase 2 checklist:
@@ -142,7 +144,7 @@ This is a smooth helix (cos/sin phase), not a hard sign flip at wrap.
 Update cadence (PTR_UPDATE_EVERY) is an empirical limiter. Micro assoc_clean
 shows a clear knee at update_every >= 8 (see Evidence below).
 
-5) FP64 Pointer Precision: Increases basin resolution depth (eval_loss: -5%) and prevents rounding-drift in zero-inertia trajectories without impacting CUDA stability.
+5) Configurable Pointer Precision: `TP6_PTR_DTYPE` now wires pointer math to fp32/fp64 as needed.
 
 6) Zero-Control Stability: Confirmed that raw gradient updates (no inertia/deadzone) are safe under RIUSS 98.2 constraints.
 
@@ -407,6 +409,8 @@ See:
 <details>
 <summary><strong>Latest Patches</strong></summary>
 
+- 2026-01-18: Config wiring + stability fixes (TP6_PTR_DTYPE, TP6_SLOT_DIM, synth_len/shuffle, thermo/panic aliases, cadence_gov crash).
+- 2026-01-18: Seq-MNIST CPU subset shows learning signal (eval_loss < ln(10), eval_acc > 0.12) with soft readout + no-round.
 - 2026-01-18: Roadmap reformatted into a 3-phase timeline (prove / improve / finish).
 - 2026-01-17: Added the Pilot-Pulse Conjecture (hypothesis framing for navigation-based intelligence).
 - 2026-01-17: Evolution checkpoints + resume (TP6_EVO_RESUME, evo_latest.pt).

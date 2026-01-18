@@ -51,6 +51,7 @@ and `prime_c19/settings.py`. Defaults are from code; scripts may override them.
 | Env var | Default | Type | Purpose |
 | --- | --- | --- | --- |
 | TP6_RING_LEN | 4096 | int | Ring length. |
+| TP6_SLOT_DIM | 8 | int | Slot/feature dimension per ring cell. |
 | TP6_PTR_STRIDE | 1 | int | Param stride for ptr parameters. |
 | TP6_GAUSS_K | 2 | int | Kernel radius (window = 2K+1). |
 | TP6_GAUSS_TAU | 0.5 | float | Gaussian tau (width). |
@@ -67,7 +68,7 @@ and `prime_c19/settings.py`. Defaults are from code; scripts may override them.
 | TP6_PTR_DEADZONE | 0.0 | float | Distance below which movement is resisted. |
 | TP6_PTR_DEADZONE_TAU | 1e-3 | float | Soft mask temperature for deadzone. |
 | TP6_PTR_WARMUP_STEPS | 0 | int | Warmup steps with pointer locked. |
-| TP6_PTR_WALK_PROB | 0.2 | float | Walk vs stay when not jumping. |
+| PARAM_POINTER_FORWARD_STEP_PROB | 0.2 | float | Walk vs stay when not jumping. |
 | TP6_PTR_NO_ROUND | 0 | flag | Use continuous target (no STE rounding). |
 | TP6_PTR_PHANTOM | 0 | flag | Phantom hysteresis quantizer. |
 | TP6_PTR_PHANTOM_OFF | 0.5 | float | Phantom offset. |

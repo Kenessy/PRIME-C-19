@@ -94,7 +94,7 @@ def apply_env(args: argparse.Namespace, device: str) -> None:
     os.environ["TP6_RING_LEN"] = str(args.ring_len)
     os.environ["TP6_PTR_INERTIA"] = str(args.ptr_inertia)
     os.environ["TP6_PTR_DEADZONE"] = str(args.ptr_deadzone)
-    os.environ["TP6_PTR_WALK_PROB"] = str(args.ptr_walk_prob)
+    os.environ["PARAM_POINTER_FORWARD_STEP_PROB"] = str(args.ptr_walk_prob)
     os.environ["TP6_PTR_NO_ROUND"] = "1" if args.ptr_no_round else "0"
     os.environ["TP6_LMOVE"] = str(args.lmove)
     os.environ["TP6_GRAD_CLIP"] = str(args.grad_clip)

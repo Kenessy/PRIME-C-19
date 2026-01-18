@@ -76,5 +76,11 @@ Default: `auto`
 Purpose: Device selection (`cuda` or `cpu`), falls back to available hardware.  
 Behavior impact: None (hardware choice).
 
+## PARAM_POINTER_FORWARD_STEP_PROB
+Type: `float`  
+Default: `0.2`  
+Purpose: Probability of advancing the pointer by 1 bin when not jumping (`0.0` = stay, `1.0` = always step).  
+Behavior impact: High (controls pointer drift/exploration).
+
 
 

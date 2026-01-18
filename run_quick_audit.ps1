@@ -40,7 +40,7 @@ function Run-Case {
   $env:TP6_PTR_INERTIA = "0.0"
   $env:TP6_PTR_DEADZONE = "0.0"
   $env:TP6_PTR_DEADZONE_TAU = "0.001"
-  $env:TP6_PTR_WALK_PROB = "0.2"
+  $env:PARAM_POINTER_FORWARD_STEP_PROB = "0.2"
   $env:TP6_PTR_PHANTOM = "0"
   $env:TP6_PTR_PHANTOM_OFF = "0.5"
   $env:TP6_PTR_NO_ROUND = "0"

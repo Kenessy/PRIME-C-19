@@ -47,7 +47,9 @@ class Settings:
     satiety_thresh: float
 
     ring_len: int
+    slot_dim: int
     ptr_param_stride: int
+    ptr_dtype: torch.dtype
     gauss_k: int
     gauss_tau: float
     ptr_kernel: str
@@ -195,6 +197,7 @@ def load_settings() -> Settings:
     satiety_thresh = _env_float("TP6_SATIETY", 0.98)
 
     ring_len = _env_int("TP6_RING_LEN", 4096)
+    slot_dim = _env_int("TP6_SLOT_DIM", 8)
     ptr_param_stride = _env_int("TP6_PTR_STRIDE", 1)
     gauss_k = _env_int("TP6_GAUSS_K", 2)
     gauss_tau = _env_float("TP6_GAUSS_TAU", 0.5)
@@ -206,7 +209,7 @@ def load_settings() -> Settings:
     ptr_deadzone = _env_float("TP6_PTR_DEADZONE", 0.0)
     ptr_deadzone_tau = _env_float("TP6_PTR_DEADZONE_TAU", 1e-3)
     ptr_warmup_steps = _env_int("TP6_PTR_WARMUP_STEPS", 0)
-    ptr_walk_prob = _env_float("TP6_PTR_WALK_PROB", 0.2)
+    ptr_walk_prob = _env_float("PARAM_POINTER_FORWARD_STEP_PROB", 0.2)
     ptr_no_round = _env_flag("TP6_PTR_NO_ROUND", False)
     ptr_phantom = _env_flag("TP6_PTR_PHANTOM", False)
     ptr_phantom_off = _env_float("TP6_PTR_PHANTOM_OFF", 0.5)
@@ -241,7 +244,7 @@ def load_settings() -> Settings:
     ptr_jump_disabled = _env_flag("TP6_PTR_JUMP_DISABLED", False)
     ptr_jump_cap = _env_float("TP6_PTR_JUMP_CAP", 1.0)
 
-    thermo_enabled = _env_flag("TP6_THERMO", False)
+    thermo_enabled = _env_flag("TP6_THERMO", _env_flag("TP6_THERMO_ENABLED", False))
     thermo_every = _env_int("TP6_THERMO_EVERY", 20)
     thermo_target_flip = _env_float("TP6_THERMO_TARGET_FLIP", 0.2)
     thermo_ema = _env_float("TP6_THERMO_EMA", 0.9)
@@ -255,7 +258,7 @@ def load_settings() -> Settings:
     thermo_walk_min = _env_float("TP6_THERMO_WALK_MIN", 0.0)
     thermo_walk_max = _env_float("TP6_THERMO_WALK_MAX", 0.3)
 
-    panic_enabled = _env_flag("TP6_PANIC", False)
+    panic_enabled = _env_flag("TP6_PANIC", _env_flag("TP6_PANIC_ENABLED", False))
     panic_threshold = _env_float("TP6_PANIC_THRESHOLD", 1.5)
     panic_beta = _env_float("TP6_PANIC_BETA", 0.9)
     panic_recovery = _env_float("TP6_PANIC_RECOVERY", 0.01)
@@ -284,6 +287,14 @@ def load_settings() -> Settings:
     use_amp = device == "cuda" and precision in {"fp16", "bf16", "amp"}
     if precision == "fp64":
         use_amp = False
+    ptr_dtype_name = _env_str("TP6_PTR_DTYPE", "fp32").lower()
+    ptr_dtype_map: Dict[str, torch.dtype] = {
+        "fp64": torch.float64,
+        "fp32": torch.float32,
+        "fp16": torch.float16,
+        "bf16": torch.bfloat16,
+    }
+    ptr_dtype = ptr_dtype_map.get(ptr_dtype_name, torch.float32)
 
     mi_shuffle = _env_flag("TP6_MI_SHUFFLE", False)
     state_loop_metrics = _env_flag("TP6_STATE_LOOP_METRICS", False)
@@ -346,7 +357,9 @@ def load_settings() -> Settings:
         live_trace_every=live_trace_every,
         satiety_thresh=satiety_thresh,
         ring_len=ring_len,
+        slot_dim=slot_dim,
         ptr_param_stride=ptr_param_stride,
+        ptr_dtype=ptr_dtype,
         gauss_k=gauss_k,
         gauss_tau=gauss_tau,
         ptr_kernel=ptr_kernel,

@@ -12,7 +12,7 @@ base_env = {
     "TP6_BATCH_SIZE":"32",
     "TP6_MAX_STEPS":"400",
     "TP6_PTR_SOFT_GATE":"1",
-    "TP6_PTR_WALK_PROB":"0.05",
+    "PARAM_POINTER_FORWARD_STEP_PROB":"0.05",
     "TP6_PTR_INERTIA":"0.1",
     "TP6_PTR_DEADZONE":"0",
     "TP6_PTR_NO_ROUND":"1",

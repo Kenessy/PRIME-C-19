@@ -45,7 +45,7 @@ function Run-Case {
   $env:TP6_SOFT_READOUT = "1"
   $env:TP6_SOFT_READOUT_K = "2"
   $env:TP6_SOFT_READOUT_TAU = "0.5"
-  $env:TP6_PTR_WALK_PROB = "0.2"
+  $env:PARAM_POINTER_FORWARD_STEP_PROB = "0.2"
 
   foreach ($k in $EnvOverrides.Keys) {
     Set-Item -Path "Env:$k" -Value $EnvOverrides[$k]

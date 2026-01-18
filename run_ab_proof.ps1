@@ -71,7 +71,7 @@ $common = @{
   TP6_GRAD_CLIP = "1.0"
   TP6_STATE_CLIP = "5.0"
   TP6_STATE_DECAY = "0.99"
-  TP6_PTR_WALK_PROB = "0.2"
+  PARAM_POINTER_FORWARD_STEP_PROB = "0.2"
   TP6_MAX_SAMPLES = "5000"
   TP6_EVAL_SAMPLES = "1024"
 }
@@ -89,7 +89,7 @@ $stabilized.TP6_PTR_DEADZONE = "0.2"
 $stabilized.TP6_PTR_DEADZONE_TAU = "0.01"
 $stabilized.TP6_PTR_PHANTOM = "1"
 $stabilized.TP6_PTR_PHANTOM_OFF = "0.5"
-$stabilized.TP6_PTR_WALK_PROB = "0.0"
+$stabilized.PARAM_POINTER_FORWARD_STEP_PROB = "0.0"
 
 $seedList = $Seeds -split "," | ForEach-Object { [int]$_.Trim() } | Where-Object { $_ -gt 0 }
 $rows = @()
