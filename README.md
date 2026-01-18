@@ -67,6 +67,28 @@ error-correction loops can yield measurable self-monitoring and potentially
 serve as a pathway to machine self-conscious behavior. This is unproven and is
 framed as a testable research hypothesis.
 
+### Riemann Consciousness Conjecture (Hypothesis)
+
+Core thesis: intelligence is not only compute or storage, but navigation
+efficiency on a structured manifold. "Thinking" is the control agent (Pilot)
+traversing the Substrate (encoded geometry).
+
+Pilot-Substrate dualism: the Substrate holds structure; the Pilot locates it.
+A strong Substrate with a poorly tuned Pilot can be dysfunctional, so both must
+align.
+
+Law of topological inertia: momentum and friction govern the regime of
+navigation. A "walker" verifies step-by-step; a "tunneler" can skip across
+gaps when inertia is aligned. This is framed as control dynamics, not biology.
+
+Singularity mechanism (insight): under low friction and aligned inertia, the
+Pilot converges rapidly toward the Substrate's structure, moving from search to
+resonance. This remains a hypothesis.
+
+Scaling rebuttal (soft form): larger substrates expand capacity but also search
+entropy unless the Pilot is physics-aware. We expect self-governing inertia and
+cadence control to matter alongside parameter count.
+
 Full narrative (speculative): `docs/HYPOTHESIS.md`
 
 ---
@@ -173,7 +195,7 @@ set TP6_BATCH_SIZE=32
 set TP6_MAX_STEPS=200
 
 set TP6_PTR_SOFT_GATE=1
-set TP6_PTR_WALK_PROB=0.05
+set PARAM_POINTER_FORWARD_STEP_PROB=0.05
 set TP6_PTR_INERTIA=0.1
 set TP6_PTR_DEADZONE=0
 set TP6_PTR_NO_ROUND=1
@@ -294,7 +316,7 @@ Pointer dynamics:
 - TP6_PTR_SOFT_GATE: soft gate for pointer updates
 - TP6_PTR_JUMP_CAP: clamp jump probability
 - TP6_PTR_JUMP_DISABLED: disable jump mix (walk only)
-- TP6_PTR_WALK_PROB, TP6_PTR_INERTIA, TP6_PTR_DEADZONE
+- PARAM_POINTER_FORWARD_STEP_PROB, TP6_PTR_INERTIA, TP6_PTR_DEADZONE
 
 Automation:
 - TP6_THERMO, TP6_PTR_UPDATE_AUTO, TP6_PANIC
