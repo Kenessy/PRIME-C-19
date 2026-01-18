@@ -8,7 +8,7 @@ Status: PRE-ALPHA (research prototype). This is a proof of concept published ear
 for prior art. It is not production-ready and is not expected to work end-to-end.
 Expect breaking changes, unstable results, and incomplete components.
 
-Last updated: 2026-01-17 (local time)
+Last updated: 2026-01-18 (local time)
 
 PRIME C-19 is a recurrent neural memory architecture that navigates a continuous
 1D circular manifold (ring buffer). It focuses on topological and numerical fixes
@@ -93,24 +93,32 @@ Full narrative (speculative): `docs/HYPOTHESIS.md`
 
 ---
 
-## Roadmap Snapshot (Goals + Status)
+## Timeline (3 Phases)
 
-| Horizon | Goal | Description | Status |
-| --- | --- | --- | --- |
-| Short | Micro assoc_clean stability | Governor + warmup hits 1.00 acc on len=8 task (3 seeds, 800 steps). | Done |
-| Short | Cadence knee measured | update_every sweep shows learning only at >=8. | Done |
-| Mid | Hard assoc_clean | len=32, keys=4, pairs=2 reaches >=0.80 acc across seeds. | In progress |
-| Mid | Seq-MNIST baseline beat | Beat a standard GRU/LSTM baseline on comparable budget. | Planned |
-| Long | Long-range benchmark | LRA/Path-X or Associative Recall at scale. | Planned |
-| Long | External reproduction | Independent run confirms results. | Planned |
+Phase 1 - Prove it works (current)
+- Foundation fixes: seam-safe interpolation, fractional kernels, cadence knee, Unified Manifold Governor. (Done)
+- Micro assoc_clean stability at 800 steps. (Done)
+- Hard assoc_clean >= 0.80 acc (len=32, keys=4, pairs=2). (In progress)
 
-Checklist:
+Phase 2 - Improve it
+- Seq-MNIST baseline beat on comparable budget. (Planned)
+
+Phase 3 - Finish it
+- Long-range benchmark (LRA/Path-X or Associative Recall at scale). (Planned)
+- External reproduction confirms results. (Planned)
+
+Phase 1 checklist:
 - [x] Seam-safe pointer interpolation (shortest-arc circ_lerp) implemented.
 - [x] FP32 pointer math for fractional kernels (sub-bin gradients).
 - [x] Cadence knee documented (update_every >= 8).
 - [x] Unified Manifold Governor reaches 1.00 acc on micro assoc_clean.
 - [ ] Hard assoc_clean >= 0.80 acc (len=32, keys=4, pairs=2).
+
+Phase 2 checklist:
 - [ ] Seq-MNIST baseline beat on comparable budget.
+
+Phase 3 checklist:
+- [ ] Long-range benchmark (LRA/Path-X or Associative Recall at scale).
 - [ ] External reproduction confirmed.
 
 ---
@@ -399,6 +407,7 @@ See:
 <details>
 <summary><strong>Latest Patches</strong></summary>
 
+- 2026-01-18: Roadmap reformatted into a 3-phase timeline (prove / improve / finish).
 - 2026-01-17: Added the Pilot-Pulse Conjecture (hypothesis framing for navigation-based intelligence).
 - 2026-01-17: Evolution checkpoints + resume (TP6_EVO_RESUME, evo_latest.pt).
 - 2026-01-17: Infinite evolution when TP6_EVO_GENS=0.
