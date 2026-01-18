@@ -99,7 +99,9 @@ Phase 1 - Prove it works (current)
 - Foundation fixes: seam-safe interpolation, fractional kernels, cadence knee, Unified Manifold Governor. (Done)
 - Micro assoc_clean stability at 800 steps. (Done)
 - Seq-MNIST learning signal on CPU subset (loss < ln(10) with soft readout + no-round). (Done)
+- Autonomous control loop integrated: AGC (dynamic update_scale) + velocity-aware cadence gating. (Done)
 - Hard assoc_clean >= 0.80 acc (len=32, keys=4, pairs=2). (In progress)
+- Autonomous seq-MNIST run with self-regulation (no manual scale/cadence). (In progress)
 
 Phase 2 - Improve it
 - Seq-MNIST baseline beat on comparable budget. (Planned)
@@ -114,10 +116,13 @@ Phase 1 checklist:
 - [x] Cadence knee documented (update_every >= 8).
 - [x] Unified Manifold Governor reaches 1.00 acc on micro assoc_clean.
 - [x] Seq-MNIST learning signal on CPU subset (loss < ln(10), eval_acc > 0.12).
+- [x] AGC (dynamic update_scale) + velocity-aware cadence gating integrated.
 - [ ] Hard assoc_clean >= 0.80 acc (len=32, keys=4, pairs=2).
+- [ ] Autonomous seq-MNIST run shows stable improvement without manual scale/cadence.
 
 Phase 2 checklist:
 - [ ] Seq-MNIST baseline beat on comparable budget.
+- [ ] Autonomous seq-MNIST baseline beat (AGC + velocity gating, no manual caps).
 
 Phase 3 checklist:
 - [ ] Long-range benchmark (LRA/Path-X or Associative Recall at scale).
@@ -157,6 +162,10 @@ finding, not a formal result.
 8(?)) Hypothesis only but strong: In high-dimensional associative memory (f.e.: 2048 units), momentum is a liability. 
 Pointers must be able to change direction instantly to settle into "laminar" basins. 
 Inertia causes "Basin Overshoot," which was the primary cause of the divergence seen in early prototype runs
+
+9) Automatic Gain Control (AGC): update_scale is now dynamic and self-regulated to stay in a safe grad band.
+
+10) Velocity-aware cadence gating: pointer speed forces higher sampling (lower cadence) to prevent aliasing on jumps.
 
 ---
 
@@ -414,6 +423,8 @@ See:
 <summary><strong>Latest Patches</strong></summary>
 
 - 2026-01-18: Config wiring + stability fixes (TP6_PTR_DTYPE, TP6_SLOT_DIM, synth_len/shuffle, thermo/panic aliases, cadence_gov crash).
+- 2026-01-18: Autonomous control loop added (AGC + velocity-aware cadence gating); update_scale now dynamic.
+- 2026-01-18: Small bench script now accepts pointer/governor overrides (tools/bench_small_prime.py).
 - 2026-01-18: Seq-MNIST CPU subset shows learning signal (eval_loss < ln(10), eval_acc > 0.12) with soft readout + no-round.
 - 2026-01-18: Roadmap reformatted into a 3-phase timeline (prove / improve / finish).
 - 2026-01-17: Added the Pilot-Pulse Conjecture (hypothesis framing for navigation-based intelligence).

@@ -2,6 +2,13 @@
 
 All dates are local time (YYYY-MM-DD).
 
+## 2026-01-18
+- Control: update_scale is now dynamic (AGC loop) to prevent runaway gradients.
+- Control: cadence governor now uses pointer velocity (downshift on high motion).
+- Control: AGC unscales grads when AMP is enabled to avoid false spikes.
+- Logs: runtime now surfaces dynamic update_scale in training output.
+- Tools: `tools/bench_small_prime.py` accepts pointer/governor overrides and dataset selection.
+
 ## 2026-01-17
 - Fix: wrap-safe parameter interpolation in `_gather_params` (seam-safe control lookup).
 - Fix: consolidate loss-based panic reflex into `tournament_phase6.py` (TP6_PANIC* env flags).

@@ -6,6 +6,16 @@ Command:
 python tools/bench_small_prime.py
 ```
 
+Overrides:
+
+```bash
+python tools/bench_small_prime.py --help
+```
+
+The bench now accepts pointer/governor overrides (inertia, deadzone, cadence,
+soft readout, and optional governor settings). Defaults below still apply if no
+flags are provided.
+
 Defaults used (script defaults):
 
 - epochs: 120

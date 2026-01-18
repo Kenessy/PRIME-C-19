@@ -137,7 +137,24 @@ def split_data(rng, x, y, train_frac):
     return x[train_idx], y[train_idx], x[eval_idx], y[eval_idx]
 
 
-def build_model(input_dim, num_classes, activation, ring_len, slot_dim, gauss_k, gauss_tau, device):
+def build_model(
+    input_dim,
+    num_classes,
+    activation,
+    ring_len,
+    slot_dim,
+    gauss_k,
+    gauss_tau,
+    device,
+    ptr_inertia,
+    ptr_deadzone,
+    ptr_walk_prob,
+    ptr_update_every,
+    ptr_no_round,
+    soft_readout,
+    soft_readout_k,
+    soft_readout_tau,
+):
     model = AbsoluteHallway(
         input_dim=input_dim,
         num_classes=num_classes,
@@ -148,21 +165,26 @@ def build_model(input_dim, num_classes, activation, ring_len, slot_dim, gauss_k,
         gauss_tau=gauss_tau,
     ).to(device)
     model.act_name = activation
-    model.ptr_inertia = 0.0
-    model.ptr_deadzone = 0.0
-    model.ptr_walk_prob = 0.10
-    model.ptr_update_every = 1
+    model.ptr_inertia = ptr_inertia
+    model.ptr_deadzone = ptr_deadzone
+    model.ptr_walk_prob = ptr_walk_prob
+    model.ptr_update_every = max(1, int(ptr_update_every))
     model.ptr_warmup_steps = 0
+    model.ptr_no_round = ptr_no_round
+    model.soft_readout = soft_readout
+    model.soft_readout_k = max(0, int(soft_readout_k))
+    model.soft_readout_tau = max(float(soft_readout_tau), 1e-6)
     return model
 
 
-def train_model(model, loader, task, epochs, lr, device):
+def train_model(model, loader, task, epochs, lr, device, governor=None, log_every=0):
     model.train()
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
     if task == "regression":
         criterion = torch.nn.MSELoss()
     else:
         criterion = torch.nn.CrossEntropyLoss()
+    step_idx = 0
     for _ in range(epochs):
         for inputs, targets in loader:
             inputs = inputs.to(device)
@@ -177,7 +199,20 @@ def train_model(model, loader, task, epochs, lr, device):
             else:
                 loss = criterion(outputs, targets)
             loss.backward()
+            grad_norm = 0.0
+            if hasattr(model, "theta_ptr_reduced") and model.theta_ptr_reduced.grad is not None:
+                grad = model.theta_ptr_reduced.grad
+                grad_norm = float(torch.linalg.vector_norm(grad).item())
             optimizer.step()
+            if governor is not None:
+                flip_rate = float(getattr(model, "ptr_flip_rate", 0.0))
+                model.ptr_update_every = governor.update(loss.item(), grad_norm, flip_rate)
+                if log_every > 0 and step_idx % log_every == 0:
+                    print(
+                        f"[governor] step={step_idx} cadence={model.ptr_update_every} "
+                        f"grad={grad_norm:.4f} flip={flip_rate:.4f} loss={loss.item():.6f}"
+                    )
+            step_idx += 1
 
 
 def eval_model(model, loader, task, device):
@@ -229,6 +264,28 @@ def main():
     parser.add_argument("--seq-mode", choices=["steps2", "flat"], default="steps2")
     parser.add_argument("--device", default="cpu")
     parser.add_argument("--activations", default="c19,relu,silu")
+    parser.add_argument("--datasets", default="xor,two_moons,circles,spiral,sine")
+    parser.add_argument("--ptr-inertia", type=float, default=0.0)
+    parser.add_argument("--ptr-deadzone", type=float, default=0.0)
+    parser.add_argument("--ptr-walk-prob", type=float, default=0.10)
+    parser.add_argument("--ptr-update-every", type=int, default=1)
+    parser.add_argument("--ptr-no-round", action="store_true")
+    parser.add_argument("--soft-readout", action="store_true")
+    parser.add_argument("--soft-readout-k", type=int, default=2)
+    parser.add_argument("--soft-readout-tau", type=float, default=2.0)
+    parser.add_argument("--use-governor", action="store_true")
+    parser.add_argument("--gov-warmup", type=int, default=0)
+    parser.add_argument("--gov-min", type=int, default=1)
+    parser.add_argument("--gov-max", type=int, default=16)
+    parser.add_argument("--gov-ema", type=float, default=0.9)
+    parser.add_argument("--gov-target-flip", type=float, default=0.2)
+    parser.add_argument("--gov-grad-high", type=float, default=45.0)
+    parser.add_argument("--gov-grad-low", type=float, default=2.0)
+    parser.add_argument("--gov-loss-flat", type=float, default=0.001)
+    parser.add_argument("--gov-loss-spike", type=float, default=0.1)
+    parser.add_argument("--gov-step-up", type=float, default=0.5)
+    parser.add_argument("--gov-step-down", type=float, default=0.2)
+    parser.add_argument("--log-every", type=int, default=0)
     args = parser.parse_args()
 
     set_seed(args.seed)
@@ -245,6 +302,7 @@ def main():
 
     device = torch.device(args.device)
 
+    selected = {name.strip() for name in args.datasets.split(",") if name.strip()}
     datasets = []
     x, y = generate_xor(rng, 512, noise=0.2)
     datasets.append(("xor", "classification", x, y, 2))
@@ -261,6 +319,8 @@ def main():
 
     results = []
     for name, task, x, y, num_classes in datasets:
+        if selected and name not in selected:
+            continue
         if task == "classification":
             x_train, y_train, x_eval, y_eval = split_data(rng, x, y, args.train_frac)
             x_train = to_sequence(x_train, args.seq_mode)
@@ -292,8 +352,41 @@ def main():
                 gauss_k=args.gauss_k,
                 gauss_tau=args.gauss_tau,
                 device=device,
+                ptr_inertia=args.ptr_inertia,
+                ptr_deadzone=args.ptr_deadzone,
+                ptr_walk_prob=args.ptr_walk_prob,
+                ptr_update_every=args.ptr_update_every,
+                ptr_no_round=args.ptr_no_round,
+                soft_readout=args.soft_readout,
+                soft_readout_k=args.soft_readout_k,
+                soft_readout_tau=args.soft_readout_tau,
             )
-            train_model(model, train_loader, task, args.epochs, args.lr, device)
+            governor = None
+            if args.use_governor:
+                governor = tp6.CadenceGovernor(
+                    start_tau=float(args.ptr_update_every),
+                    warmup_steps=args.gov_warmup,
+                    min_tau=args.gov_min,
+                    max_tau=args.gov_max,
+                    ema=args.gov_ema,
+                    target_flip=args.gov_target_flip,
+                    grad_high=args.gov_grad_high,
+                    grad_low=args.gov_grad_low,
+                    loss_flat=args.gov_loss_flat,
+                    loss_spike=args.gov_loss_spike,
+                    step_up=args.gov_step_up,
+                    step_down=args.gov_step_down,
+                )
+            train_model(
+                model,
+                train_loader,
+                task,
+                args.epochs,
+                args.lr,
+                device,
+                governor=governor,
+                log_every=args.log_every,
+            )
             eval_loss, eval_acc = eval_model(model, eval_loader, task, device)
             if task == "regression":
                 results.append(
