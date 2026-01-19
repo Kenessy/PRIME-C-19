@@ -16,6 +16,22 @@ that stabilize gradient descent on closed loops and remove seam teleportation.
 
 ---
 
+## Breakthrough Snapshot (Local Run)
+
+This is a live, local-run status note intended for quick verification. It is
+not a benchmark claim.
+
+- Dataset: `seq_mnist`
+- Slot width: `TP6_SLOT_DIM=64`
+- Controls: AGC + velocity-aware cadence gating + adaptive inertia enabled
+- User-reported best loss (local log): ~2.20 around step ~5.8k
+
+How to verify on your machine:
+- Run with the same config and watch your log for a best-loss line.
+- The log line format is `step XXXX | loss Y.YYYY | ...`.
+
+---
+
 ## One-line Pitch
 
 Shortest-arc pointer control + fractional read/write kernels + cadence-aware
