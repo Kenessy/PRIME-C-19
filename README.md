@@ -8,7 +8,7 @@ Status: PRE-ALPHA (research prototype). This is a proof of concept published ear
 for prior art. It is not production-ready and is not expected to work end-to-end.
 Expect breaking changes, unstable results, and incomplete components.
 
-Last updated: 2026-01-18 (local time)
+Last updated: 2026-01-19 (local time)
 
 PRIME C-19 is a recurrent neural memory architecture that navigates a continuous
 1D circular manifold (ring buffer). It focuses on topological and numerical fixes
@@ -25,9 +25,10 @@ not a benchmark claim.
 - Slot width: `TP6_SLOT_DIM=64`
 - Controls: AGC + velocity-aware cadence gating + adaptive inertia enabled
 - User-reported best loss (local log): ~2.20 around step ~5.8k
-- **Infinity-resilience observation (local):** `grad_norm(theta_ptr)` hit `inf` and
-  peaked at `4.2064e+18`, yet the run continued without NaN and kept learning
-  (see `logs/current/tournament_phase6.log`, around steps ~4913–4930).
+- **Infinity-resilience observation (local):** `grad_norm(theta_ptr)` hit `inf`
+  and peaked at `4.2064e+18`, with a later repeat spike of `4.0504e+18` at
+  step 6834; the run continued without NaN and kept learning (see
+  `logs/current/tournament_phase6.log`, steps ~4913–4930 and 6834).
 
 How to verify on your machine:
 - Run with the same config and watch your log for a best-loss line.
