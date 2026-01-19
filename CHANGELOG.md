@@ -15,6 +15,9 @@ All dates are local time (YYYY-MM-DD).
 - Logs: runtime now surfaces dynamic update_scale in training output.
 - Tools: `tools/bench_small_prime.py` accepts pointer/governor overrides and dataset selection.
 
+## 2026-01-19
+- Docs: highlight local-run "infinity-resilience" observation (inf and e+18 grad spikes survived in logs/current).
+
 ## 2026-01-17
 - Fix: wrap-safe parameter interpolation in `_gather_params` (seam-safe control lookup).
 - Fix: consolidate loss-based panic reflex into `tournament_phase6.py` (TP6_PANIC* env flags).
