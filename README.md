@@ -22,6 +22,7 @@ This is a live, local-run status note intended for quick verification. It is
 not a benchmark claim.
 
 - Dataset: `seq_mnist`
+- Input format: MNIST resized to 16x16, flattened into a 256-step sequence
 - Slot width: `TP6_SLOT_DIM=64`
 - Controls: AGC + velocity-aware cadence gating + adaptive inertia enabled
 - User-reported best loss (local log): ~2.20 around step ~5.8k
