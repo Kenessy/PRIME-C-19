@@ -9,8 +9,8 @@ authors:
 license: "PolyForm-Noncommercial-1.0.0"
 repository-code: "https://github.com/Kenessy/PRIME-C-19"
 url: "https://github.com/Kenessy/PRIME-C-19"
-date-released: "2026-01-18"
-version: "v0.1.0"
+date-released: "2026-01-19"
+version: "v0.1.1"
 keywords:
   - pointer memory
   - circular memory
