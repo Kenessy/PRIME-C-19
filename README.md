@@ -428,6 +428,7 @@ See:
 <summary><strong>Latest Patches</strong></summary>
 
 - 2026-01-18: AGC scale cap + pre-clip AGC grad + adaptive inertia; raw pointer velocity logged; checkpoints persist AGC/inertia.
+- 2026-01-18: Offline checkpoint loopiness probe (pointer flip/dwell/entropy + state-loop metrics) added in docs/STATE_LOOP_PROBE.md.
 - 2026-01-18: Config wiring + stability fixes (TP6_PTR_DTYPE, TP6_SLOT_DIM, synth_len/shuffle, thermo/panic aliases, cadence_gov crash).
 - 2026-01-18: Autonomous control loop added (AGC + velocity-aware cadence gating); update_scale now dynamic.
 - 2026-01-18: Small bench script now accepts pointer/governor overrides (tools/bench_small_prime.py).

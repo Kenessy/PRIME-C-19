@@ -3,6 +3,7 @@
 All dates are local time (YYYY-MM-DD).
 
 ## 2026-01-18
+- Diagnostics: offline checkpoint loopiness probe (pointer flip/dwell/entropy + state-loop metrics) added in docs/STATE_LOOP_PROBE.md.
 - Control: AGC now honors a scale cap (`TP6_SCALE_MAX`) and persists it in checkpoints.
 - Control: AGC uses pre-clip pointer grad norm (brake visibility under clipping).
 - Control: adaptive inertia added (`TP6_PTR_INERTIA_AUTO` + min/max/vel/EMA).
