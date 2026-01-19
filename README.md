@@ -341,13 +341,23 @@ Details: docs/RUISS.md
 
 Pointer dynamics:
 - TP6_PTR_UPDATE_EVERY: cadence (key limiter)
+- TP6_PTR_UPDATE_MIN / TP6_PTR_UPDATE_MAX: cadence bounds (when governor enabled)
 - TP6_PTR_SOFT_GATE: soft gate for pointer updates
 - TP6_PTR_JUMP_CAP: clamp jump probability
 - TP6_PTR_JUMP_DISABLED: disable jump mix (walk only)
 - PARAM_POINTER_FORWARD_STEP_PROB, TP6_PTR_INERTIA, TP6_PTR_DEADZONE
 
 Automation:
-- TP6_THERMO, TP6_PTR_UPDATE_AUTO, TP6_PANIC
+- TP6_PTR_UPDATE_GOV: cadence governor (loss/grad/velocity)
+- TP6_PTR_UPDATE_AUTO: legacy pointer auto-updates (keep off unless needed)
+- TP6_PTR_INERTIA_AUTO: adaptive inertia (EMA-smoothed)
+- TP6_UPDATE_SCALE: AGC start scale
+- TP6_SCALE_MAX: AGC upper cap
+- TP6_GRAD_CLIP: grad clip for stability
+- TP6_THERMO, TP6_PANIC
+
+Model size:
+- TP6_SLOT_DIM: GRU/slot width (default 8; larger values cost more but add capacity)
 
 </details>
 
