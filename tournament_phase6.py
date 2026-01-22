@@ -478,6 +478,7 @@ def apply_update_agc(model, grad_norm, raw_delta=None):
     dwell_brake_thresh = 20.0
     dwell_recover_thresh = 50.0
     current_dwell = getattr(model, "ptr_mean_dwell", 0.0)
+    max_dwell = getattr(model, "ptr_max_dwell", current_dwell)
     try:
         current_dwell = float(current_dwell)
     except Exception:
@@ -500,6 +501,9 @@ def apply_update_agc(model, grad_norm, raw_delta=None):
             scale *= AGC_SCALE_DOWN
     scale = max(AGC_SCALE_MIN, min(cap, scale))
 
+    # Use the strongest dwell signal we have for gating (captures brief locks).
+    dwell_metric = max(current_dwell, max_dwell)
+
     if SPEED_GOV_ENABLED and raw_delta is not None:
         try:
             raw_delta_value = float(raw_delta)
@@ -516,7 +520,7 @@ def apply_update_agc(model, grad_norm, raw_delta=None):
                 limit = max(SPEED_GOV_L_MIN, min(SPEED_GOV_L_MAX, ema * SPEED_GOV_L_K))
                 if math.isfinite(limit) and limit > 0.0:
                     # Apply brake only when not in a high-dwell lock state.
-                    if current_dwell < dwell_brake_thresh:
+                    if dwell_metric < dwell_brake_thresh:
                         t = min(ground_speed_raw / limit, 0.5)
                         h = t * (1.0 - t)
                         brake = 1.0 + SPEED_GOV_RHO * (h / 0.25)
@@ -530,7 +534,7 @@ def apply_update_agc(model, grad_norm, raw_delta=None):
                 model.ground_speed = ground_speed
 
     # Recovery reflex: if dwell is high, aggressively relax cap/scale upward and clear speed history.
-    if current_dwell >= dwell_recover_thresh:
+    if dwell_metric >= dwell_recover_thresh:
         if SPEED_GOV_RHO > 0:
             cap = base_cap  # hard reset to full cap when locked
             model.ground_speed_ema = None  # clear ghost velocity
@@ -2078,9 +2082,10 @@ def train_wallclock(model, loader, dataset_name, model_name, num_classes, wall_c
                     if math.isfinite(v):
                         ptr_stats.append(f"{label}={fmt.format(v)}")
                 ptr_text = f", ptr[{'; '.join(ptr_stats)}]" if ptr_stats else ""
+                agc_cap = getattr(model, "agc_scale_cap", getattr(model, "agc_scale_max", AGC_SCALE_MAX))
                 log(
                     f"{dataset_name} | {model_name} | step {step:04d} | loss {loss.item():.4f} | "
-                    f"t={elapsed:.1f}s | ctrl(inertia={model.ptr_inertia:.2f}, deadzone={model.ptr_deadzone:.2f}, walk={model.ptr_walk_prob:.2f}, cadence={model.ptr_update_every}, scale={getattr(model, 'update_scale', UPDATE_SCALE):.3f}"
+                    f"t={elapsed:.1f}s | ctrl(inertia={model.ptr_inertia:.2f}, deadzone={model.ptr_deadzone:.2f}, walk={model.ptr_walk_prob:.2f}, cadence={model.ptr_update_every}, scale={getattr(model, 'update_scale', UPDATE_SCALE):.3f}, cap={agc_cap:.3f}"
                     f"{raw_delta_text}{ground_speed_text}{ground_speed_ema_text}{ground_speed_limit_text}{ptr_text})"
                     + xray_text
                     + (f" | panic={panic_status}" if panic_reflex is not None else "")
