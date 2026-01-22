@@ -182,6 +182,9 @@ INERTIA_EMA = CFG.ptr_inertia_ema
 # Optional dwell-driven inertia (kinetic tempering)
 DWELL_INERTIA_ENABLED = bool(int(os.environ.get("TP6_DWELL_INERTIA", "0")))
 DWELL_INERTIA_THRESH = float(os.environ.get("TP6_DWELL_INERTIA_THRESH", "50.0"))
+WALK_PULSE_ENABLED = bool(int(os.environ.get("TP6_WALK_PULSE", "0")))
+WALK_PULSE_EVERY = int(os.environ.get("TP6_WALK_PULSE_EVERY", "50"))
+WALK_PULSE_VALUE = float(os.environ.get("TP6_WALK_PULSE_VALUE", "0.5"))
 PTR_UPDATE_GOV_VEL_HIGH = getattr(CFG, "ptr_update_gov_vel_high", 0.5)
 LIVE_TRACE_PATH = CFG.live_trace_path
 RUN_MODE = CFG.run_mode
@@ -1976,6 +1979,13 @@ def train_wallclock(model, loader, dataset_name, model_name, num_classes, wall_c
                 inputs = inputs.to(DTYPE)
             targets = targets.to(DEVICE, non_blocking=True)
 
+            # Curiosity jitter: pulse walk_prob for one step on a schedule.
+            prev_walk_prob = getattr(model, "ptr_walk_prob", PTR_WALK_PROB)
+            pulse_applied = False
+            if WALK_PULSE_ENABLED and WALK_PULSE_EVERY > 0 and step % WALK_PULSE_EVERY == 0:
+                model.ptr_walk_prob = WALK_PULSE_VALUE
+                pulse_applied = True
+
             optimizer.zero_grad(set_to_none=True)
             with amp_autocast():
                 if xray_enabled:
@@ -2167,6 +2177,8 @@ def train_wallclock(model, loader, dataset_name, model_name, num_classes, wall_c
 
             # Explicitly release intermediates to reduce fragmentation risk.
             del outputs, loss
+            if pulse_applied:
+                model.ptr_walk_prob = prev_walk_prob
             step += 1
             if MAX_STEPS > 0 and step >= MAX_STEPS:
                 stop_early = True
