@@ -187,6 +187,11 @@ WALK_PULSE_EVERY = int(os.environ.get("TP6_WALK_PULSE_EVERY", "50"))
 WALK_PULSE_VALUE = float(os.environ.get("TP6_WALK_PULSE_VALUE", "0.5"))
 SHARD_ENABLED = bool(int(os.environ.get("TP6_SHARD_BATCH", "0")))
 SHARD_SIZE = int(os.environ.get("TP6_SHARD_SIZE", "19"))
+SHARD_ADAPT = bool(int(os.environ.get("TP6_SHARD_ADAPT", "0")))
+SHARD_ADAPT_EVERY = int(os.environ.get("TP6_SHARD_ADAPT_EVERY", "50"))
+SHARD_ADAPT_GRAD = float(os.environ.get("TP6_SHARD_ADAPT_GRAD", "10.0"))
+SHARD_ADAPT_DWELL = float(os.environ.get("TP6_SHARD_ADAPT_DWELL", "40.0"))
+SHARD_MIN_PER_SHARD = int(os.environ.get("TP6_SHARD_MIN_PER_SHARD", "1"))
 PTR_UPDATE_GOV_VEL_HIGH = getattr(CFG, "ptr_update_gov_vel_high", 0.5)
 LIVE_TRACE_PATH = CFG.live_trace_path
 RUN_MODE = CFG.run_mode
@@ -1994,11 +1999,37 @@ def train_wallclock(model, loader, dataset_name, model_name, num_classes, wall_c
                     outputs, move_pen, xray = model(inputs, return_xray=True)
                 else:
                     outputs, move_pen = model(inputs)
-                if SHARD_ENABLED and SHARD_SIZE > 0 and outputs.shape[0] > SHARD_SIZE:
+                local_shard_size = SHARD_SIZE
+                if SHARD_ENABLED and SHARD_ADAPT and SHARD_ADAPT_EVERY > 0 and (step % SHARD_ADAPT_EVERY == 0):
+                    batch_sz = outputs.shape[0]
+                    # Build valid shard counts (divisors) to avoid remainders.
+                    valid_counts = [c for c in range(1, batch_sz + 1) if batch_sz % c == 0]
+                    # Avoid tiny shards.
+                    max_shards = max(1, min(batch_sz // max(1, SHARD_MIN_PER_SHARD), batch_sz))
+                    # Simple cohesion: dwell pulls up (fuse), grad pulls down (shard).
+                    dwell_val = getattr(model, "ptr_mean_dwell", 0.0)
+                    try:
+                        dwell_val = float(dwell_val)
+                    except Exception:
+                        dwell_val = 0.0
+                    tension_val = grad_norm if "grad_norm" in locals() else 0.0
+                    try:
+                        tension_val = float(tension_val)
+                    except Exception:
+                        tension_val = 0.0
+                    focus = max(0.0, min(1.0, dwell_val / SHARD_ADAPT_DWELL)) if SHARD_ADAPT_DWELL > 0 else 0.0
+                    tension = max(0.0, min(1.0, tension_val / SHARD_ADAPT_GRAD)) if SHARD_ADAPT_GRAD > 0 else 0.0
+                    cohesion = max(0.0, min(1.0, 0.5 + focus - 0.5 * tension))
+                    target_shards = max(1, min(max_shards, round(max_shards * (1.0 - cohesion))))
+                    # Pick nearest valid shard count.
+                    shard_count = min(valid_counts, key=lambda c: abs(c - target_shards)) if valid_counts else 1
+                    shard_count = max(1, shard_count)
+                    local_shard_size = max(1, batch_sz // shard_count)
+                if SHARD_ENABLED and local_shard_size > 0 and outputs.shape[0] > local_shard_size:
                     # Sub-culture partitioning: split batch into shards, mean losses.
                     loss_parts = []
                     for out_chunk, tgt_chunk in zip(
-                        torch.split(outputs, SHARD_SIZE, dim=0), torch.split(targets, SHARD_SIZE, dim=0)
+                        torch.split(outputs, local_shard_size, dim=0), torch.split(targets, local_shard_size, dim=0)
                     ):
                         loss_parts.append(criterion(out_chunk, tgt_chunk))
                     loss = torch.stack(loss_parts).mean() + LAMBDA_MOVE * move_pen
