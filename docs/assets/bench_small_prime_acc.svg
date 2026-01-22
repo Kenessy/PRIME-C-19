@@ -1,0 +1,38 @@
+<svg xmlns='http://www.w3.org/2000/svg' width='760' height='300' viewBox='0 0 760 300'>
+<rect width='100%' height='100%' fill='#0f172a'/>
+<text x='20' y='22' fill='#e2e8f0' font-size='14' font-family='Segoe UI, sans-serif'>Small Synthetic Bench: Accuracy</text>
+<line x1='60' y1='30' x2='60' y2='260' stroke='#475569' stroke-width='1' />
+<line x1='60' y1='260' x2='740' y2='260' stroke='#475569' stroke-width='1' />
+<line x1='56' y1='260.0' x2='60' y2='260.0' stroke='#64748b' stroke-width='1' />
+<text x='52' y='264.0' fill='#94a3b8' font-size='10' font-family='Segoe UI, sans-serif' text-anchor='end'>0.00</text>
+<line x1='56' y1='202.5' x2='60' y2='202.5' stroke='#64748b' stroke-width='1' />
+<text x='52' y='206.5' fill='#94a3b8' font-size='10' font-family='Segoe UI, sans-serif' text-anchor='end'>0.25</text>
+<line x1='56' y1='145.0' x2='60' y2='145.0' stroke='#64748b' stroke-width='1' />
+<text x='52' y='149.0' fill='#94a3b8' font-size='10' font-family='Segoe UI, sans-serif' text-anchor='end'>0.50</text>
+<line x1='56' y1='87.5' x2='60' y2='87.5' stroke='#64748b' stroke-width='1' />
+<text x='52' y='91.5' fill='#94a3b8' font-size='10' font-family='Segoe UI, sans-serif' text-anchor='end'>0.75</text>
+<line x1='56' y1='30.0' x2='60' y2='30.0' stroke='#64748b' stroke-width='1' />
+<text x='52' y='34.0' fill='#94a3b8' font-size='10' font-family='Segoe UI, sans-serif' text-anchor='end'>1.00</text>
+<rect x='81.25' y='30.00' width='34.00' height='230.00' fill='#4ade80' />
+<rect x='123.75' y='30.00' width='34.00' height='230.00' fill='#60a5fa' />
+<rect x='166.25' y='30.00' width='34.00' height='230.00' fill='#fbbf24' />
+<text x='145.00' y='278' fill='#cbd5f5' font-size='11' font-family='Segoe UI, sans-serif' text-anchor='middle'>xor</text>
+<rect x='251.25' y='30.00' width='34.00' height='230.00' fill='#4ade80' />
+<rect x='293.75' y='30.00' width='34.00' height='230.00' fill='#60a5fa' />
+<rect x='336.25' y='30.00' width='34.00' height='230.00' fill='#fbbf24' />
+<text x='315.00' y='278' fill='#cbd5f5' font-size='11' font-family='Segoe UI, sans-serif' text-anchor='middle'>two_moons</text>
+<rect x='421.25' y='31.49' width='34.00' height='228.51' fill='#4ade80' />
+<rect x='463.75' y='32.99' width='34.00' height='227.01' fill='#60a5fa' />
+<rect x='506.25' y='31.49' width='34.00' height='228.51' fill='#fbbf24' />
+<text x='485.00' y='278' fill='#cbd5f5' font-size='11' font-family='Segoe UI, sans-serif' text-anchor='middle'>circles</text>
+<rect x='591.25' y='37.66' width='34.00' height='222.34' fill='#4ade80' />
+<rect x='633.75' y='56.84' width='34.00' height='203.16' fill='#60a5fa' />
+<rect x='676.25' y='50.45' width='34.00' height='209.55' fill='#fbbf24' />
+<text x='655.00' y='278' fill='#cbd5f5' font-size='11' font-family='Segoe UI, sans-serif' text-anchor='middle'>spiral</text>
+<rect x='550' y='20' width='10' height='10' fill='#4ade80' />
+<text x='566' y='29' fill='#e2e8f0' font-size='11' font-family='Segoe UI, sans-serif'>C19</text>
+<rect x='550' y='38' width='10' height='10' fill='#60a5fa' />
+<text x='566' y='47' fill='#e2e8f0' font-size='11' font-family='Segoe UI, sans-serif'>RELU</text>
+<rect x='550' y='56' width='10' height='10' fill='#fbbf24' />
+<text x='566' y='65' fill='#e2e8f0' font-size='11' font-family='Segoe UI, sans-serif'>SILU</text>
+</svg>

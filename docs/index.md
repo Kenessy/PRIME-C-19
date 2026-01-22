@@ -1,30 +1,110 @@
-# PRIME C-19 — Research Preview
+---
+layout: default
+---
 
-> Noncommercial research snapshot by **Daniel Kenessy**. Pre‑alpha, not production. This page is deliberately high‑level and omits implementation details to protect the work.
+<p align="center">
+  <img src="assets/banner-dark.svg" alt="PRIME C‑19 banner" width="100%">
+</p>
 
-## What this is
-- Experimental recurrent memory system exploring pointer-driven state on a circular manifold (ring) with stability controls.
-- Published early for prior art and transparency; the public snapshot is intentionally minimal.
-- License: **PolyForm Noncommercial 1.0.0**. Commercial use requires a separate agreement.
+# PRIME C‑19
+**Phase‑Recurring Infinite Manifold Engine**  
+Pointer‑driven recurrent memory on a continuous circular manifold (ring buffer), focused on seam‑safe learning and stability on closed loops.
 
-## Status
-- Research prototype (pre‑alpha). No warranty; not an end‑to‑end product.
-- Code is retained for archival/research; supporting docs and scripts are withheld in this public snapshot.
-- Hypothesis framing is speculative and not a proof of consciousness or general intelligence.
+> **Research preview.** This project is a pre‑alpha prototype and prior‑art disclosure. It is not production‑ready.
 
-## Efficiency hypothesis (speculative)
-- Idea: stable pointer dynamics + ring topology could deliver long-horizon memory with fewer parameters.
-- This is a research hypothesis, not a claim of solved intelligence. Treat all findings as tentative until independently reproduced.
+---
 
-## Looking for collaborators
-- **Senior Python/ML engineer**: help harden and extend the system.
-- **IP/licensing/legal partner**: help structure commercial rights while keeping research access open.
-- Collaboration style: small, focused, shared upside; practical and reproducible.
-- Contact: `kenessy.dani@gmail.com`
+## Founder note 👋
+Hi — I’m **Daniel Kenessy**. I’m **31** and based in **Slovakia**.  
+I build experimental systems at the edges: ideas that look strange on paper until you can run them, graph them, and break them.
 
-## Cite
-- Zenodo (concept DOI, all versions): [10.5281/zenodo.18300615](https://doi.org/10.5281/zenodo.18300615)
+I’ve always trusted two things: **intuition** and **mechanics**. PRIME C‑19 is me trying to turn that intuition into something you can inspect, reproduce, and improve — with the long‑term goal of making advanced AI **cheaper, more accessible, and more useful than “just a chatbot.”**
 
-## Licensing
-- PolyForm Noncommercial 1.0.0. See `LICENSE` and `COMMERCIAL_LICENSE.md` in the repo.
-- Commercial licensing: reach out to discuss terms.
+---
+
+## What we’re trying to achieve 🎯
+We want AI that runs as a **natural extension of the mind** — locally, privately, and efficiently — so it can:
+- make **robots** more stable and adaptive,
+- make **cars** safer and smarter,
+- help **space probes** operate longer and farther,
+- and reduce the cost of deploying intelligence on constrained devices.
+
+---
+
+## What PRIME C‑19 is (today) 🧠🧵
+PRIME C‑19 is a recurrent neural memory architecture that navigates a continuous **1D circular manifold** (a ring buffer). It’s designed around a simple premise:
+
+> If the model’s internal state can’t stay coherent while it moves across seams and loops, it can’t stay coherent while it thinks.
+
+Core themes:
+- **Seam‑safe pointer control** (wrap‑around without teleportation)
+- **Fractional read/write kernels** (sub‑bin gradients)
+- **Cadence‑aware updates** (stability on a looped substrate)
+- **Governors** (dynamic scaling, cadence gating, safety rails)
+
+---
+
+<details>
+<summary><strong>Efficiency claim (careful wording) ⚠️</strong></summary>
+
+### Hypothesis (not yet proven)
+We hypothesize that a *correctly scaled* seam‑safe manifold memory could support **much cheaper inference** than architectures that repeatedly touch large contexts — because the model can update and read a **local neighborhood** instead of scanning or attending to everything.
+
+**Important:** this is a research hypothesis, not a promised benchmark. Training is currently compute‑heavy in this prototype, and we still need rigorous external reproduction and comparative baselines.
+
+</details>
+
+---
+
+## Evidence (early snapshots) 📈
+<p align="center">
+  <img src="assets/cadence_knee.svg" alt="Cadence knee chart" width="92%">
+</p>
+
+<p align="center">
+  <img src="assets/bench_small_prime_acc.svg" alt="Small benchmark accuracy chart" width="92%">
+</p>
+
+For the full technical README, commands, and ablations, see the GitHub repository.
+
+---
+
+## Looking for partners 🤝
+If this direction resonates with you, I’d love to talk.
+
+I’m **not** in a position to hire employees yet. What I’m looking for is **partnership** — working together to validate, harden, and ship the tech, then sharing upside fairly.
+
+### The 2 critical roles I’m looking for
+1) **ML / Systems engineer (Python + PyTorch)**  
+   Someone who can turn a research prototype into a reliable training + inference pipeline, improve stability, and help design reproducible benchmarks.
+
+2) **Legal / business partner**  
+   Someone who can help structure licensing, collaboration agreements, and keep us safe while we scale adoption.
+
+Optional (nice to have):
+- A **research partner** to design evaluations / ablations and write the “paper‑grade” story.
+- A **design/brand** helper to make the project presentable (docs, diagrams, communication).
+
+### How to reach me
+- **Email:** `kenessy.dani@gmail.com`
+- Please include: your background, what you want to build, and what time commitment you can realistically offer.
+
+> Note: Most project details are already public in the repo/Zenodo. If we discuss non‑public details in the future, we can use a mutual NDA — but NDAs generally do not cover information that’s already public or independently developed by the other party.
+
+---
+
+## License & commercial use 🧾
+This public release is **PolyForm Noncommercial 1.0.0**.  
+Commercial use requires a separate written license — see the repository’s `COMMERCIAL_LICENSE.md`.
+
+---
+
+## Cite this work 🔖
+- Latest version DOI: https://doi.org/10.5281/zenodo.18332532  
+- Concept DOI (always resolves to latest): https://doi.org/10.5281/zenodo.18289891
+
+---
+
+<p align="center">
+  <small>© Daniel Kenessy. Research preview — no warranty. Built with GitHub Pages.</small>
+</p>
