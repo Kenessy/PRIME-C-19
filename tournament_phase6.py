@@ -182,6 +182,10 @@ INERTIA_EMA = CFG.ptr_inertia_ema
 PTR_UPDATE_GOV_VEL_HIGH = getattr(CFG, "ptr_update_gov_vel_high", 0.5)
 LIVE_TRACE_PATH = CFG.live_trace_path
 RUN_MODE = CFG.run_mode
+# Cold start controls
+COLD_START_STEPS = int(os.environ.get("TP6_COLD_START_STEPS", "0"))
+COLD_PTR_UPDATE_MIN = int(os.environ.get("TP6_COLD_PTR_UPDATE_MIN", PTR_UPDATE_EVERY))
+COLD_UPDATE_SCALE = float(os.environ.get("TP6_COLD_UPDATE_SCALE", UPDATE_SCALE))
 # Checkpoint / resume controls
 CHECKPOINT_PATH = CFG.checkpoint_path
 SAVE_EVERY_STEPS = CFG.save_every_steps
