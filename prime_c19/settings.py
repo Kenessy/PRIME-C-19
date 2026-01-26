@@ -215,7 +215,7 @@ def load_settings() -> Settings:
     eval_samples = _env_int("TP6_EVAL_SAMPLES", 1024)
     eval_split = _env_str("TP6_EVAL_SPLIT", "test").lower()
     eval_ptr_deterministic = _env_flag("TP6_EVAL_PTR_DETERMINISTIC", True)
-    batch_size = _env_int("TP6_BATCH_SIZE", 128)
+    batch_size = _env_int("TP6_BATCH_SIZE", 16)
     lr = _env_float("TP6_LR", 1e-3)
     wall_clock_seconds = _env_int("TP6_WALL", 15 * 60)
     max_steps = _env_int("TP6_MAX_STEPS", 0)
@@ -225,7 +225,7 @@ def load_settings() -> Settings:
     live_trace_every = _env_int("VAR_LIVE_TRACE_EVERY_N_STEPS", heartbeat_steps)
     satiety_thresh = _env_float("TP6_SATIETY", 0.98)
 
-    ring_len = _env_int("TP6_RING_LEN", 4096)
+    ring_len = _env_int("TP6_RING_LEN", 8192)
     slot_dim = _env_int("TP6_SLOT_DIM", 576)
     ptr_param_stride = _env_int("TP6_PTR_STRIDE", 1)
     gauss_k = _env_int("TP6_GAUSS_K", 2)

@@ -23,3 +23,13 @@ checkpoints and "tenured" experts. Adjust only by training a new model variant.
 - **`slot_dim` / `d_model`: 576**
 - Rationale: best CPU sweet spot in bench (speed + loss) vs. 512/640/768.
 
+### 3) Main Ring Length (Working Memory)
+- **`ring_len`: 8192**
+- Rationale: intelligence‑first profile on this hardware; lower jitter and
+  better long‑horizon stability than 2048/4096 at the cost of throughput.
+
+### 4) Short‑Term Memory Vault (STM)
+- **`vault_len`: 4096** (ratio **0.5** of `ring_len`)
+- **`vault_dim`: 64**
+- Rationale: empirical vault sweep showed lowest mean loss at `vault_dim=64`
+  for `slot_dim=576`. Ratio 0.5 consistently reduced jitter.
