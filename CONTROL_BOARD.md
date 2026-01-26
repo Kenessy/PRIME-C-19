@@ -64,7 +64,7 @@ These are read in `load_settings()` and surfaced as the `Settings` dataclass.
 | Setting | Env var | Type | Default | Notes |
 |---|---|---:|---:|---|
 | `ring_len` | `TP6_RING_LEN` | int | 256 | ring positions |
-| `slot_dim` | `TP6_SLOT_DIM` | int | 64 | slot feature dim |
+| `slot_dim` | `TP6_SLOT_DIM` | int | 576 | slot feature dim |
 | `ptr_dtype` | `TP6_PTR_DTYPE` | str | "float" | pointer tensor dtype hint |
 | `ptr_param_stride` | `TP6_PTR_PARAM_STRIDE` | int | 4 | stride for pointer params |
 | `gauss_k` | `TP6_GAUSS_K` | int | 3 | gaussian stencil radius |

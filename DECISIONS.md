@@ -1,0 +1,25 @@
+# VRAXION Architectural Locks
+
+These choices are **architectural**. Changing them later invalidates existing
+checkpoints and "tenured" experts. Adjust only by training a new model variant.
+
+## Locked Decisions (Phase C)
+
+### 1) Byte Vocabulary (In-band tokens)
+- **Vocab size:** 272
+- **Token map:**
+  - `0–255`: raw bytes
+  - `256`: `<BOS>`
+  - `257`: `<EOS>`
+  - `258`: `<PAD>`
+  - `259`: `<SEP>`
+  - `260`: `<CODE>`
+  - `261`: `<TEXT>`
+  - `262`: `<VISION>`
+  - `263`: `<AUDIO>`
+  - `264–271`: reserved
+
+### 2) Model Width / Slot Dim
+- **`slot_dim` / `d_model`: 576**
+- Rationale: best CPU sweet spot in bench (speed + loss) vs. 512/640/768.
+

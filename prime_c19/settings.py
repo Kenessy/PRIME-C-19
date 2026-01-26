@@ -226,7 +226,7 @@ def load_settings() -> Settings:
     satiety_thresh = _env_float("TP6_SATIETY", 0.98)
 
     ring_len = _env_int("TP6_RING_LEN", 4096)
-    slot_dim = _env_int("TP6_SLOT_DIM", 8)
+    slot_dim = _env_int("TP6_SLOT_DIM", 576)
     ptr_param_stride = _env_int("TP6_PTR_STRIDE", 1)
     gauss_k = _env_int("TP6_GAUSS_K", 2)
     gauss_tau = _env_float("TP6_GAUSS_TAU", 0.5)
