@@ -22,6 +22,7 @@ proofs/
 run_*.ps1
 tail_*.ps1
 IGNITE_*.ps1
+bench_*/
 *.zip
 
 # Checkpoints / binaries

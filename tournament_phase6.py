@@ -1394,21 +1394,26 @@ class AbsoluteHallway(nn.Module):
         ptr_dtype = PTR_DTYPE
         sensory_seq = None
         if self.sensory_enabled:
-            s_state = torch.zeros(B, self.sensory_len, self.sensory_dim, device=device, dtype=x.dtype)
-            s_h = torch.zeros(B, self.sensory_dim, device=device, dtype=x.dtype)
+            s_dtype = self.sensory_gru.weight_ih.dtype
+            s_state = torch.zeros(B, self.sensory_len, self.sensory_dim, device=device, dtype=s_dtype)
+            s_h = torch.zeros(B, self.sensory_dim, device=device, dtype=s_dtype)
             s_ptr = torch.zeros(B, device=device, dtype=torch.long)
             s_out = []
+            s_decay_on = decay_on.to(s_dtype) if decay_on is not None else None
+            s_decay_off = decay_off.to(s_dtype) if decay_off is not None else None
             for t in range(T):
                 if bos_mask is not None:
                     mask_t = bos_mask[:, t]
                     if mask_t.any():
-                        decay = torch.where(mask_t, decay_on, decay_off).view(B, 1, 1)
+                        decay = torch.where(mask_t, s_decay_on, s_decay_off).view(B, 1, 1)
                         s_state = s_state * decay
                         s_h = s_h * decay.view(B, 1)
                 s_inp = self.sensory_proj_in(x[:, t, :])
                 s_inp = self._apply_activation(s_inp)
                 s_ctx = s_state[torch.arange(B, device=device), s_ptr]
                 s_h = self.sensory_gru(s_inp + s_ctx, s_h)
+                if s_h.dtype != s_state.dtype:
+                    s_h = s_h.to(s_state.dtype)
                 s_state[torch.arange(B, device=device), s_ptr] = s_h
                 s_out.append(s_h)
                 s_ptr = (s_ptr + 1) % self.sensory_len
@@ -1462,7 +1467,8 @@ class AbsoluteHallway(nn.Module):
         vault_injections = 0
         vault_updates = 0
         if vault_active:
-            vault_ring = torch.zeros(B, self.vault_len, self.vault_dim, device=device, dtype=x.dtype)
+            vault_dtype = self.vault_down.weight.dtype
+            vault_ring = torch.zeros(B, self.vault_len, self.vault_dim, device=device, dtype=vault_dtype)
             vault_ptr = torch.zeros(B, device=device, dtype=torch.long)
         # Dynamic pointer trace (loops/motion)
         prev_ptr_int = None
@@ -1566,7 +1572,7 @@ class AbsoluteHallway(nn.Module):
                     idx = torch.arange(B, device=device)
                     read_idx = (vault_ptr - 1) % self.vault_len
                     read_vec = vault_ring[idx, read_idx]
-                    inp = inp + self.vault_up(read_vec) * self.vault_inject_scale
+                    inp = inp + self.vault_up(read_vec).to(inp.dtype) * self.vault_inject_scale
                     vault_injections += int(mask_t.sum().item())
             inp = self._apply_activation(inp)
             nan_guard("inp", inp, t)
@@ -1612,6 +1618,8 @@ class AbsoluteHallway(nn.Module):
                 if mask_t.any():
                     idx = torch.arange(B, device=device)
                     write_vec = self.vault_down(upd)
+                    if write_vec.dtype != vault_ring.dtype:
+                        write_vec = write_vec.to(vault_ring.dtype)
                     vault_ring[idx[mask_t], vault_ptr[mask_t]] = write_vec[mask_t]
                     vault_ptr = (vault_ptr + mask_t.to(torch.long)) % self.vault_len
                     vault_updates += int(mask_t.sum().item())
@@ -2487,8 +2495,9 @@ def get_seq_mnist_loader():
             mix_offset = float(os.environ.get("TP6_ASSOC_MIX_OFFSET", "100.0"))
             mix_clean_offset = float(os.environ.get("TP6_ASSOC_MIX_CLEAN_OFFSET", "0.0"))
             mix_domain_token = os.environ.get("TP6_ASSOC_MIX_DOMAIN_TOKEN") == "1"
-            mix_clean_sentinel = float(os.environ.get("TP6_ASSOC_MIX_CLEAN_SENTINEL", "50.0"))
-            mix_byte_sentinel = float(os.environ.get("TP6_ASSOC_MIX_BYTE_SENTINEL", "150.0"))
+            mix_clean_sentinel = float(os.environ.get("TP6_ASSOC_MIX_CLEAN_SENTINEL", str(CODE_ID)))
+            mix_byte_sentinel = float(os.environ.get("TP6_ASSOC_MIX_BYTE_SENTINEL", str(TEXT_ID)))
+            mix_bos_eos = os.environ.get("TP6_BOS_EOS_INJECT") == "1"
 
             def _prepend_domain_token(x_src, token):
                 x_pad = torch.zeros(
@@ -2497,6 +2506,18 @@ def get_seq_mnist_loader():
                 )
                 x_pad[:, 1:, :] = x_src
                 x_pad[:, 0, 0] = token
+                return x_pad
+
+            def _wrap_bos_domain_eos(x_src, token):
+                if x_src.size(1) < 4:
+                    return x_src
+                x_pad = torch.full_like(x_src, float(PAD_ID))
+                x_pad[:, 0, 0] = float(BOS_ID)
+                x_pad[:, 1, 0] = float(token)
+                max_copy = max(0, x_src.size(1) - 3)
+                if max_copy > 0:
+                    x_pad[:, 2:2 + max_copy, :] = x_src[:, :max_copy, :]
+                x_pad[:, -1, 0] = float(EOS_ID)
                 return x_pad
 
             def _make_assoc_mix(seq_len_local: int):
@@ -2526,7 +2547,10 @@ def get_seq_mnist_loader():
                 if mix_offset:
                     mask = x_byte > 0
                     x_byte[mask] = x_byte[mask] + mix_offset
-                if mix_domain_token:
+                if mix_bos_eos:
+                    x_clean = _wrap_bos_domain_eos(x_clean, mix_clean_sentinel if mix_domain_token else CODE_ID)
+                    x_byte = _wrap_bos_domain_eos(x_byte, mix_byte_sentinel if mix_domain_token else TEXT_ID)
+                elif mix_domain_token:
                     x_clean = _prepend_domain_token(x_clean, mix_clean_sentinel)
                     x_byte = _prepend_domain_token(x_byte, mix_byte_sentinel)
                     seq_len = seq_len + 1
