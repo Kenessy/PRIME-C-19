@@ -177,6 +177,16 @@ METABOLIC_TELEMETRY = os.environ.get("TP6_METABOLIC_TELEMETRY", "0") == "1"
 METABOLIC_HUNGER = os.environ.get("TP6_METABOLIC_HUNGER", "0") == "1"
 METABOLIC_COST_COEFF = float(os.environ.get("TP6_METABOLIC_COST_COEFF", "0.0001"))
 DOMAIN_SEP_COEFF = float(os.environ.get("TP6_DOMAIN_SEP_COEFF", "0.0"))
+BYTE_VOCAB = 256
+BOS_ID = int(os.environ.get("TP6_BOS_ID", str(BYTE_VOCAB)))
+EOS_ID = int(os.environ.get("TP6_EOS_ID", str(BYTE_VOCAB + 1)))
+PAD_ID = int(os.environ.get("TP6_PAD_ID", str(BYTE_VOCAB + 2)))
+SEP_ID = int(os.environ.get("TP6_SEP_ID", str(BYTE_VOCAB + 3)))
+CODE_ID = int(os.environ.get("TP6_CODE_ID", str(BYTE_VOCAB + 4)))
+TEXT_ID = int(os.environ.get("TP6_TEXT_ID", str(BYTE_VOCAB + 5)))
+VISION_ID = int(os.environ.get("TP6_VISION_ID", str(BYTE_VOCAB + 6)))
+AUDIO_ID = int(os.environ.get("TP6_AUDIO_ID", str(BYTE_VOCAB + 7)))
+BOS_DECAY = float(os.environ.get("TP6_BOS_DECAY", "0.3"))
 EXPERT_BUDGET = int(os.environ.get("TP6_EXPERT_BUDGET", "0"))
 USAGE_LAMBDA_INIT = float(os.environ.get("TP6_USAGE_LAMBDA", "0.0"))
 USAGE_LAMBDA_MAX = float(os.environ.get("TP6_USAGE_LAMBDA_MAX", "0.5"))
@@ -1344,6 +1354,14 @@ class AbsoluteHallway(nn.Module):
     def forward(self, x, return_xray: bool = False):
         B, T, _ = x.shape
         device = x.device
+        bos_decay = max(0.0, min(1.0, BOS_DECAY))
+        bos_mask = None
+        decay_on = None
+        decay_off = None
+        if bos_decay < 1.0 and x.shape[2] == 1:
+            bos_mask = x[:, :, 0] == float(BOS_ID)
+            decay_on = torch.tensor(bos_decay, device=device, dtype=x.dtype)
+            decay_off = torch.tensor(1.0, device=device, dtype=x.dtype)
         ring_range = self.ring_range
         ptr_dtype = PTR_DTYPE
         sensory_seq = None
@@ -1353,6 +1371,12 @@ class AbsoluteHallway(nn.Module):
             s_ptr = torch.zeros(B, device=device, dtype=torch.long)
             s_out = []
             for t in range(T):
+                if bos_mask is not None:
+                    mask_t = bos_mask[:, t]
+                    if mask_t.any():
+                        decay = torch.where(mask_t, decay_on, decay_off).view(B, 1, 1)
+                        s_state = s_state * decay
+                        s_h = s_h * decay.view(B, 1)
                 s_inp = self.sensory_proj_in(x[:, t, :])
                 s_inp = self._apply_activation(s_inp)
                 s_ctx = s_state[torch.arange(B, device=device), s_ptr]
@@ -1367,6 +1391,11 @@ class AbsoluteHallway(nn.Module):
             movement_cost = torch.tensor(0.0, device=device, dtype=x.dtype)
             pointer_addresses = torch.zeros(B, device=device, dtype=torch.long)
             for t in range(T):
+                if bos_mask is not None:
+                    mask_t = bos_mask[:, t]
+                    if mask_t.any():
+                        decay = torch.where(mask_t, decay_on, decay_off).view(B, 1)
+                        h = h * decay
                 if self.sensory_enabled:
                     inp = self.sensory_bridge(sensory_seq[:, t, :])
                 else:
@@ -1460,6 +1489,12 @@ class AbsoluteHallway(nn.Module):
             active_mask = ~satiety_exited
             if not active_mask.any():
                 break
+            if bos_mask is not None:
+                mask_t = bos_mask[:, t]
+                if mask_t.any():
+                    decay = torch.where(mask_t, decay_on, decay_off).view(B, 1, 1)
+                    state = state * decay
+                    h = h * decay.view(B, 1)
             anchor_clicks = 0
             # Per-step magnitude accumulator for adaptive decay.
             h_abs_sum_step = 0.0
